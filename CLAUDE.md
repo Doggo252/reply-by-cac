@@ -129,6 +129,10 @@ Anything else is "unknown" and gets the generic path.
 - Santa Clara County Medi-Cal handbook (notice wording): https://stgenssa.sccgov.org/debs/program_handbooks/medi-cal/
 - DHCS letters: I15-22, I15-22E, I14-60 at https://www.dhcs.ca.gov/services/medi-cal/eligibility/letters/
 
+## Known weak spots
+
+- Reader A (the AI) often misses dates. On the 640 test letters it got the notice date right 68% of the time, the effective date 69%, and the due date 90% (`core/eval/reader_a.md`). It mostly leaves a date blank rather than guessing wrong (0 made-up dates). The confirm screen flags every blank fact, so the user types it in. Treat this as an honest limitation to show judges, not something to hide. No prompt rework or full reruns before submission (Gemini credit is low).
+
 ## Privacy and safety rules (enforced in code, not prompts)
 
 - Before any text is sent to the LLM, blank out digit strings of 6 or more characters (case numbers, SSNs). Unit test this.
