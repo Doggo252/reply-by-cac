@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { findCaseNumber, findFacts, firstDate, fixCaseNumber } from './localFacts'
+import { findAsk, findCaseNumber, findFacts, findWorkerName, firstDate, fixCaseNumber } from './localFacts'
 
 // Lines taken from real text-reader output of the fake letters.
 test('reads both date styles', () => {
@@ -19,7 +19,7 @@ test('MC 355: notice date, due date, worker', () => {
   const { facts } = findFacts(text, 'MC355', '2026-10-07')
   expect(facts).toEqual({
     notice_date: '2026-07-24', due_date: '2026-08-16', effective_date: null, case_number: '9B7R012',
-    worker_name: 'Lorraine Hernandez', worker_phone: '(650) 374-4482',
+    worker_name: 'Lorraine Hernandez', worker_phone: '(650) 374-4482', ask: null,
   })
 })
 
@@ -52,4 +52,46 @@ test('a garbled case number is repaired, and marked as repaired', () => {
 
 test('the all-digit CalHEERS number is skipped for the SAWS one', () => {
   expect(findCaseNumber('CALHEERS CASE NUMBER: 28958444\nSAWS CASE NUMBER: 9S4Y593').value).toBe('9S4Y593')
+})
+
+// The next tests use lines from the printed test letters
+// (data/synthetic/test-letters.pdf), read by the text reader.
+test('a notice date whose slashes were read as digits', () => {
+  const text = 'NOTICE DATE: 1000712026\nCASE NAME: Gloria Lee'
+  expect(findFacts(text, 'MC_239A', '2026-10-15').facts.notice_date).toBe('2026-10-07')
+  // Not a real date, so it stays blank.
+  expect(findFacts('NOTICE DATE: 1300712026', 'MC_239A', '2026-10-15').facts.notice_date).toBeNull()
+})
+
+test('a SAWS case number with a 4 read as "a"', () => {
+  const text = 'CALHEERS CASE NUMBER: 70026706\n\u2018SAWS CASE NUMBER 7XaM714\nWORKER NAME: Lorraine Nguyen'
+  expect(findCaseNumber(text)).toEqual({ value: '7X4M714', repaired: true })
+})
+
+test('the worker name stops at the next label', () => {
+  expect(findWorkerName('Worker name: Harold Hernandez Case name: James Ramirez')).toBe('Harold Hernandez')
+  expect(findWorkerName('Worker name: Harold Hernandez\nWorker telephone number: (650) 830-3164')).toBe('Harold Hernandez')
+})
+
+test('MC 239 A: what the county is asking for, without the name pushed in from the next column', () => {
+  const text = [
+    'CASE NAME: Gloria Lee',
+    'You did not return your annual renewal form (MC 210 RV) by the due Gloria Lee',
+    'date.',
+    'Keep your plastic Benefits Identification Card (BIC).',
+  ].join('\n')
+  expect(findAsk(text, 'MC_239A')).toBe('You did not return your annual renewal form (MC 210 RV) by the due date.')
+})
+
+test('MC 239 A: a list of missing papers over two lines', () => {
+  const text = 'You did not send the following information we asked for: proof of income;\nvehicle registration.\nWe asked you'
+  expect(findAsk(text, 'MC_239A')).toBe(
+    'You did not send the following information we asked for: proof of income; vehicle registration.',
+  )
+})
+
+test('MC 355: points to the checked boxes on the other pages', () => {
+  const text = 'We still need the information where there is a box\nchecked on the following pages.'
+  expect(findAsk(text, 'MC355')).toContain('checked box')
+  expect(findAsk('nothing here', 'MC355')).toBeNull()
 })

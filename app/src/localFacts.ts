@@ -14,6 +14,7 @@ export type Facts = {
   worker_name: string | null
   worker_phone: string | null
   case_number: string | null
+  ask: string | null
 }
 
 const MONTHS = [
@@ -42,12 +43,22 @@ export function firstDate(text: string): string | null {
   return makeDate(+pick[3], MONTHS.indexOf(pick[1].toLowerCase()) + 1, +pick[2])
 }
 
+// The text reader sometimes reads the slashes in "10/07/2026" as digits,
+// giving "1000712026". Ten digits in a row with a 0, 1 or 7 where each slash
+// should be are treated as a date, but only right after a date label, and
+// only if it is a real calendar date.
+function slashesMisread(text: string): string | null {
+  const match = /(?<!\d)(\d{2})[017](\d{2})[017](\d{4})(?!\d)/.exec(text)
+  return match ? makeDate(+match[3], +match[1], +match[2]) : null
+}
+
 // The first date in the stretch of text right after a label. The text reader
 // sometimes puts the value on the next line, so it looks a little way ahead.
 function dateAfter(text: string, label: RegExp, reach = 90): string | null {
   const match = label.exec(text)
   if (!match) return null
-  return firstDate(text.slice(match.index + match[0].length, match.index + match[0].length + reach))
+  const after = text.slice(match.index + match[0].length, match.index + match[0].length + reach)
+  return firstDate(after) ?? slashesMisread(after)
 }
 
 function lastDayOfMonth(year: number, month: number): string {
@@ -69,7 +80,7 @@ function effectiveFromMonth(text: string, noticeDate: string | null, today: stri
 }
 
 // Look-alike characters the text reader mixes up.
-const AS_DIGIT: Record<string, string> = { O: '0', Q: '0', D: '0', I: '1', L: '1', Z: '2', S: '5', '§': '5', G: '6', B: '8', T: '7' }
+const AS_DIGIT: Record<string, string> = { A: '4', O: '0', Q: '0', D: '0', I: '1', L: '1', Z: '2', S: '5', '§': '5', G: '6', B: '8', T: '7' }
 const AS_LETTER: Record<string, string> = { '0': 'O', '1': 'I', '2': 'Z', '5': 'S', '6': 'G', '8': 'B', '7': 'T' }
 
 // Puts a garbled case number back into the county's #L#L### pattern, or
@@ -100,15 +111,51 @@ export function findCaseNumber(text: string): { value: string | null; repaired: 
   return { value: loose ? loose[0] : null, repaired: false }
 }
 
+// Words that start the next label. When the photo puts two columns on one
+// line ("Worker name: Harold Hernandez Case name: James Ramirez"), the name
+// stops before these.
+const LABEL_WORDS = /^(case|worker|telephone|phone|notice|date|number|id|office|customer|fax)$/i
+
+// A person's name right after a label, up to four words on the same line.
+function nameAfter(text: string, label: RegExp): string | null {
+  const match = new RegExp(label.source + /\s*:?\s*_*[ \t]*([^\n]*)/.source, 'i').exec(text)
+  if (!match) return null
+  const words: string[] = []
+  for (const word of match[1].trim().split(/[ \t]+/)) {
+    if (words.length === 4 || LABEL_WORDS.test(word) || !/^[A-Z][A-Za-z.'-]+$/.test(word)) break
+    words.push(word)
+  }
+  return words.length ? words.join(' ') : null
+}
+
 export function findWorkerName(text: string): string | null {
-  const match = /worker\s*name\s*:?\s*_*\s*([A-Z][A-Za-z.'-]+(?:[ \t]+[A-Z][A-Za-z.'-]+){0,3})/i.exec(text)
-  return match ? match[1].trim() : null
+  return nameAfter(text, /worker\s*name/)
 }
 
 export function findWorkerPhone(text: string): string | null {
   const match =
     /(?:telephone|phone)(?:\s*number)?\s*:?\s*_*\s*\(?(\d{3})\)?[\s.-]*(\d{3})[\s.-]*(\d{4})/i.exec(text)
   return match ? `(${match[1]}) ${match[2]}-${match[3]}` : null
+}
+
+// What the county is asking for, in the letter's own words.
+// - MC 239 A: the reason sentence, which always starts "You did not".
+// - MC 355: the items are check boxes on the later pages, so the phone
+//   points the person there.
+export function findAsk(text: string, letterType: string): string | null {
+  if (letterType === 'MC_239A') {
+    const match = /you\s+did\s+not\s[\s\S]{5,500}?\.(?=\s|$)/i.exec(text)
+    if (!match) return null
+    let ask = match[0]
+    // Two columns can push the person's name into the middle of the sentence.
+    const caseName = nameAfter(text, /case\s*name/)
+    if (caseName) ask = ask.split(caseName).join(' ')
+    return ask.replace(/\s+/g, ' ').replace(/\s+([.,;:])/g, '$1').trim()
+  }
+  if (letterType === 'MC355' && /box\s+checked/i.test(text)) {
+    return 'The papers or information with a checked box on the other pages of this letter.'
+  }
+  return null
 }
 
 // Returns the facts, plus the names of any that had to be repaired.
@@ -140,6 +187,7 @@ export function findFacts(text: string, letterType: string, today: string): { fa
       worker_name: findWorkerName(text),
       worker_phone: findWorkerPhone(text),
       case_number: caseNumber.value,
+      ask: findAsk(text, letterType),
     },
     repaired: caseNumber.repaired ? ['case_number'] : [],
   }
