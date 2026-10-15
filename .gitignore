@@ -1,5 +1,9 @@
-# Generated and private data. Never committed.
-data/synthetic/
+# Generated data. The 3,200 letter pictures are too big for GitHub (1.1 GB);
+# remake them with `.venv/bin/python data/generate.py`. The labels, texts and
+# test letters are small and are kept.
+data/synthetic/images/
+
+# Real letters, test only. Kept off GitHub until fully redacted.
 data/real/
 
 # Secrets. API keys live in backend/.env only.
@@ -27,6 +31,4 @@ __pycache__/
 # Local-only files. Kept on this laptop, not pushed to GitHub.
 .claude/
 .firebaserc
-CLAUDE.md
-TODO.md
 replyby-plan-v3-ai-first.md

@@ -1,0 +1,20 @@
+Page 1: MC_239A
+  notice date:    2026-10-07
+  coverage stops: 2026-10-31
+  due date:       -
+  case number:    7X4M714
+  worker:         Lorraine Nguyen, (669) 260-4088
+
+Page 2: MC355
+  notice date:    2026-10-07
+  coverage stops: -
+  due date:       2026-11-06
+  case number:    1P1P810
+  worker:         Nguyen Castillo, (408) 399-4222
+
+Page 3: MC210_RV
+  notice date:    2026-10-07
+  coverage stops: -
+  due date:       2026-12-06
+  case number:    4C2E015
+  worker:         Harold Hernandez, (650) 830-3164
