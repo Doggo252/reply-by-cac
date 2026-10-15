@@ -114,6 +114,13 @@ $7 left. Only one more full test run, near submission.**
 - [ ] **Sat 10/17 (2.5h)** [N] Fix the top 5 problems with Claude.
       [C] puts the app on a real https address (needed for offline mode and
       so judges can open it), and builds the evaluation dashboard screen.
+  - [ ] [C] Prefill "About you" from the letter, on the phone (no AI: the
+        name and address are blanked before the AI sees anything). The
+        person must confirm the address, or type a new one if they moved.
+        Agreed 10/15; candidate for the top 5 list.
+  - [ ] [C] With the agent loop: rename "Get my reply ready" to "Manually
+        prepare my response", and add "Use AI to prepare my response" for
+        the agent (Neil's wording, 10/15).
 - [ ] **Sun 10/18 (2.5h)** [N] Airplane-mode test. Write the video script
       (under 450 words). Record a rough cut as insurance for week 6.
 
@@ -145,7 +152,9 @@ $7 left. Only one more full test run, near submission.**
 
 ## Open questions
 
-- [ ] What does the agent do without fax? (Saturday 10/10)
+- [x] What does the agent do without fax? Neil picked option C (packet
+      helper and follow-up watcher) on 10/15. Claude, through the backend,
+      picks each next step. Spec in progress in `agent/TOOLS.md`.
 - [ ] Tell Mom the Phaxio account is on hold.
 - [ ] Hosting: where the backend lives once the app is online. Claude will
       propose options before 10/17; it may need a parent for the account.
