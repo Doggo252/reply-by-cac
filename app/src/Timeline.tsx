@@ -9,6 +9,8 @@ import {
   listEvents,
   listPapers,
   removeEvent,
+  saveDrafts,
+  loadDrafts,
   updateEvent,
   type Paper,
   type SavedEvent,
@@ -188,7 +190,8 @@ function FindingCard({ finding }: { finding: Finding }) {
 // Writes the letter to the county and the hearing reason (Neil's draft prompt).
 function WriteLetters({ letter, findings, events }: { letter: SavedLetter; findings: Finding[]; events: TimelineEvent[] }) {
   const [state, setState] = useState<'idle' | 'writing' | 'failed'>('idle')
-  const [drafts, setDrafts] = useState<Drafts | null>(null)
+  // Drafts already written are kept, so they are not paid for twice.
+  const [drafts, setDrafts] = useState<Drafts | null>(loadDrafts)
 
   if (letter.mode !== 'ai') {
     return (
@@ -203,6 +206,7 @@ function WriteLetters({ letter, findings, events }: { letter: SavedLetter; findi
     setState('writing')
     const answer = await askForDrafts({ letter_type: letter.letterType, ...letter.facts }, findings, events)
     setDrafts(answer)
+    saveDrafts(answer)
     setState(answer ? 'idle' : 'failed')
   }
 
@@ -221,7 +225,9 @@ function WriteLetters({ letter, findings, events }: { letter: SavedLetter; findi
     <>
       <DraftCard title="Letter asking the county to undo the stop" text={drafts.rescission_letter} />
       <DraftCard title="Why I disagree (for the hearing form)" text={drafts.hearing_reason} />
-      <p className="hint">Your case number is added when the forms are made. Read both before you send anything.</p>
+      <p className="hint">
+        These go into your reply packet (My letter, then "Get my reply ready"). Read both before you send anything.
+      </p>
     </>
   )
 }

@@ -5,10 +5,11 @@ import { inWords, plain } from './words'
 import Countdowns from './Countdowns'
 import Explanation from './Explanation'
 
-export default function LetterHome({ letter, onNewLetter, onAddEvent }: {
+export default function LetterHome({ letter, onNewLetter, onAddEvent, onMakeReply }: {
   letter: SavedLetter
   onNewLetter: () => void
   onAddEvent: () => void
+  onMakeReply: () => void
 }) {
   const { letterType, facts, mode } = letter
   // Kept the same object between screens, so the explanation is not asked
@@ -34,11 +35,16 @@ export default function LetterHome({ letter, onNewLetter, onAddEvent }: {
 
       <Countdowns letterType={letterType} facts={facts} />
 
+      <button className="button primary" onClick={onMakeReply}>
+        Get my reply ready
+      </button>
+      <p className="hint">We fill in the forms, check them against your letter, and you sign.</p>
+
       <h2 className="section-title">Did something happen?</h2>
       <p className="hint">
         If you sent papers, or the county did something, write it down. We check it for mistakes by the county.
       </p>
-      <button className="button primary" onClick={onAddEvent}>
+      <button className="button" onClick={onAddEvent}>
         Write down what happened
       </button>
       <button className="button" onClick={onNewLetter}>

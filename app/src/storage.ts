@@ -9,6 +9,7 @@
 import type { TimelineEvent } from './contradictions'
 import { fingerprint } from './fingerprint'
 import type { ReadingMode } from './flags'
+import type { AboutYou } from './packet'
 
 export type Paper = {
   id: string
@@ -114,6 +115,15 @@ function save(key: string, value: unknown) {
 
 export const loadLetter = () => load<SavedLetter>('replyby-letter')
 export const saveLetter = (letter: SavedLetter | null) => save('replyby-letter', letter)
+
+// The drafts the AI wrote from Neil's draft prompt, kept for the packet.
+export type SavedDrafts = { rescission_letter: string; hearing_reason: string }
+export const loadDrafts = () => load<SavedDrafts>('replyby-drafts')
+export const saveDrafts = (drafts: SavedDrafts | null) => save('replyby-drafts', drafts)
+
+// The person's name and address, for the forms. Only ever kept on this phone.
+export const loadAbout = () => load<AboutYou>('replyby-about')
+export const saveAbout = (about: AboutYou) => save('replyby-about', about)
 
 // The reading choice is saved as plain text, as it always has been.
 export function loadMode(): ReadingMode | null {

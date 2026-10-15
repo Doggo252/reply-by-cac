@@ -3,16 +3,8 @@
 // user says it is right. Flagged facts are marked in yellow, by Neil's rules
 // in flags.ts.
 import { useState } from 'react'
+import { FACT_LABELS as LABELS } from './words'
 
-const LABELS: Record<string, string> = {
-  notice_date: 'Date printed on the letter',
-  effective_date: 'Date your Medi-Cal stops',
-  due_date: 'Date they need your reply by',
-  ask: 'What the county is asking for',
-  worker_name: "Your worker's name",
-  worker_phone: "Your worker's phone number",
-  case_number: 'Case number',
-}
 const isDate = (field: string) => field.endsWith('_date')
 
 type Props = {

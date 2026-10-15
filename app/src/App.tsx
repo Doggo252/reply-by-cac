@@ -8,13 +8,16 @@ import Capture from './Capture'
 import LetterHome from './LetterHome'
 import Timeline from './Timeline'
 import Vault from './Vault'
-import { loadLetter, saveLetter, type SavedLetter } from './storage'
+import ReplyPacket from './ReplyPacket'
+import { loadLetter, saveDrafts, saveLetter, type SavedLetter } from './storage'
 
 type Tab = 'letter' | 'happened' | 'papers'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('letter')
   const [letter, setLetter] = useState<SavedLetter | null>(loadLetter)
+  // On the My letter tab: the letter itself, or the steps to make the reply.
+  const [makingReply, setMakingReply] = useState(false)
 
   function keepLetter(checked: SavedLetter | null) {
     saveLetter(checked)
@@ -23,7 +26,10 @@ export default function App() {
   }
 
   function newLetter() {
-    if (window.confirm('Read a different letter? The deadlines for this one will be cleared.')) keepLetter(null)
+    if (!window.confirm('Read a different letter? The deadlines for this one will be cleared.')) return
+    saveDrafts(null)
+    setMakingReply(false)
+    keepLetter(null)
   }
 
   function open(next: Tab) {
@@ -36,8 +42,24 @@ export default function App() {
       <main className="screen">
         <p className="app-name">ReplyBy</p>
         {tab === 'letter' &&
-          (letter ? (
-            <LetterHome letter={letter} onNewLetter={newLetter} onAddEvent={() => open('happened')} />
+          (letter && makingReply ? (
+            <ReplyPacket
+              letter={letter}
+              onBack={() => {
+                setMakingReply(false)
+                window.scrollTo(0, 0)
+              }}
+            />
+          ) : letter ? (
+            <LetterHome
+              letter={letter}
+              onNewLetter={newLetter}
+              onAddEvent={() => open('happened')}
+              onMakeReply={() => {
+                setMakingReply(true)
+                window.scrollTo(0, 0)
+              }}
+            />
           ) : (
             <Capture onDone={keepLetter} />
           ))}

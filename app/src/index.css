@@ -586,3 +586,43 @@ details.dev summary {
   font-size: 0.7rem;
   white-space: pre-wrap;
 }
+
+/* The signature pad: a big white box with a line to sign on. */
+.signature-pad {
+  display: block;
+  width: 100%;
+  height: 9rem;
+  margin-top: 0.6rem;
+  touch-action: none; /* so signing does not scroll the page */
+  background:
+    linear-gradient(to top, transparent 2.2rem, #8f8a80 2.2rem, #8f8a80 calc(2.2rem + 2px), transparent calc(2.2rem + 2px)),
+    #fff;
+  border: 2px solid #8f8a80;
+  border-radius: 0.7rem;
+  cursor: crosshair;
+}
+.signature-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.all-good {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 1rem;
+  padding: 0.8rem 1rem;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--green-soft);
+  border: 2px solid var(--green);
+  border-radius: 0.8rem;
+}
+.checklist {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+}
+.checklist li {
+  margin-top: 0.4rem;
+}

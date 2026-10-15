@@ -24,3 +24,14 @@ export function inWords(date: string, weekday = true): string {
 // When a file was saved, in the phone's own time zone: "October 9, 2026".
 export const savedOn = (isoTime: string) =>
   new Date(isoTime).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+
+// What each fact is called on screen.
+export const FACT_LABELS: Record<string, string> = {
+  notice_date: 'Date printed on the letter',
+  effective_date: 'Date your Medi-Cal stops',
+  due_date: 'Date they need your reply by',
+  ask: 'What the county is asking for',
+  worker_name: "Your worker's name",
+  worker_phone: "Your worker's phone number",
+  case_number: 'Case number',
+}
