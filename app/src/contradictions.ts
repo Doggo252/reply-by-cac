@@ -84,7 +84,7 @@ export function checkRule2(events: TimelineEvent[], noticeDate: string, effectiv
       rule: 2,
       date: papersDate,
       needs_proof: needsProof,
-      citation: 'Law: W&IC 14005.37(a)., MEDIL I15-22E',
+      citation: 'W&IC 14005.37(a), MEDIL I15-22E',
       reason:
         "Papers came in during the 90-day cure period, but coverage was not restored. If your coverage isn't back soon, check with your county.",
     }
