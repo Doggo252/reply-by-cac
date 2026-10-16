@@ -4,7 +4,7 @@
 
 1. **Start:** When the user taps "Use AI to prepare my response". Internet is required, else the button is greyed out and only the manual button works. If the user chose "Keep everything on my phone", the button is not shown at all.
 2. **All letters:** For every letter type, suggest papers to pick or ask for a photo.
-3. **Privacy:** Before any paper text is sent to the AI model, the app redacts PII (name, address, case number, account numbers, social security number, birthdate). The user is told that their sensitive data stays on the phone and only the text from the papers is sent. If the user says no, they manually choose the papers for the packet and draft the reason.
+3. **Privacy:** Before anything is sent to the AI model, the app redacts PII (name, address, case number, account numbers, social security number, birthdate). The user is told that three things are sent, all with private details removed: the text and facts from the letter, their own timeline notes, and the text from their papers. Their sensitive data stays on the phone. If the user says no, they manually choose the papers for the packet and draft the reason.
 4. **For MC 239 A only:** The agent drafts the hearing request. If a county mistake is found, it also drafts the restore letter. If no mistake is found, no restore letter is suggested.
 5. **Review and sign:** The user checks the responses, fixes yellow boxes and signs. The check must pass before they can sign. After they sign, the packet is saved into My papers.
 6. **Control:** If the agent tries to make the packet before the signature, or while checker errors are unfixed, the application code prevents it. The application code also ensures deadline rules and county rules are followed and not made up.
@@ -94,23 +94,23 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
 
 - **What it does:** for MC 239 A letters only, creates a draft hearing request. Claude supplies the reason for disagreeing; the code fills in case number, dates and county from the confirmed facts. If this run already has a hearing request draft for the letter, the new draft replaces it.
 - **Inputs:** `letter_id` (text), `reason_text` (text)
-- **Output:** `{ ok: true, draft_id }` or `{ ok: false, reason }`
+- **Output:** `{ ok: true, draft_id }` or `{ ok: true, draft_id, reason_left_blank: true }` or `{ ok: false, reason }`
 - **Preconditions (checked in code, not by the AI):**
   - letter exists and `letter_type` is MC 239 A
   - `reason_text` contains no date that is not in the confirmed facts or the timeline
-- **If a precondition fails:** soft refuse, so Claude can rewrite the reason. Date rejections have their own counter (Section 5).
+- **If a precondition fails:** soft refuse, so Claude can rewrite the reason. On the third date rejection in a run, the code saves the draft with an empty reason and returns ok (Section 5).
 - **Why it is not locked:** it is only a draft the review screen shows before anything is approved.
 
 ### draft_restore_letter
 
 - **What it does:** creates a draft restore letter for a mistake found by `check_county_mistake`. Claude supplies the plain-words reason; the code fills in case number, dates, county and the law citations stored in the county-mistake rules. If this run already has a restore letter draft for the letter, the new draft replaces it.
 - **Inputs:** `letter_id` (text), `mistake_id` (text), `reason_text` (text)
-- **Output:** `{ ok: true, draft_id }` or `{ ok: false, reason }`
+- **Output:** `{ ok: true, draft_id }` or `{ ok: true, draft_id, reason_left_blank: true }` or `{ ok: false, reason }`
 - **Preconditions (checked in code, not by the AI):**
   - `letter_type` is MC 239 A
   - `mistake_id` was returned by `check_county_mistake` for this letter
   - `reason_text` contains no date that is not in the confirmed facts or the timeline
-- **If a precondition fails:** soft refuse. A restore letter is never drafted when no mistake was found.
+- **If a precondition fails:** soft refuse, so Claude can rewrite the reason. On the third date rejection in a run, the code saves the draft with an empty reason and returns ok (Section 5). A restore letter is never drafted when no mistake was found.
 - **Why it is not locked:** it is only a draft shown on the review screen.
 
 ### propose_packet
@@ -138,7 +138,7 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
 
 ### open_review_screen
 
-- **What it does:** shows the user the proposed papers, the draft reasons and any yellow boxes. They can add or remove papers, edit reasons and fix yellow boxes. The screen does not allow more than 10 papers; the user is told at the limit, and this is not a tool refusal. On Done, the code bumps `approved_version`, clears the stored check result and signature, reruns the checker and stores the new result. Cancelling is a normal result.
+- **What it does:** shows the user the proposed papers, the draft reasons and any yellow boxes. They can add or remove papers, edit reasons (including writing a reason that was left blank) and fix yellow boxes. The screen does not allow more than 10 papers; the user is told at the limit, and this is not a tool refusal. On Done, the code bumps `approved_version`, clears the stored check result and signature, reruns the checker and stores the new result. Cancelling is a normal result.
 - **Inputs:** `packet_id` (text), `explanations` (list of `{ yellow_box_id, plain_words }`)
 - **Output:** `{ ok: true, approved_version, changed: true/false, check: pass/fail }` or `{ ok: false, reason: "cancelled" }`
 - **Preconditions (checked in code, not by the AI):**
@@ -168,7 +168,10 @@ See Section 3.
 
 ### build_packet (LOCKED)
 
-- **What it does:** assembles the approved papers and signed drafts into the final response packet and saves it to My papers, once.
+- **What it does:** assembles the final response packet and saves it to My papers, once. The packet contains the approved papers plus the same forms the manual flow makes for that letter type:
+  - **MC 239 A:** the signed hearing request draft, and the signed restore letter draft if one was approved
+  - **MC 355:** the cover sheet
+  - **MC 210 RV (renewal):** the cover sheet and the signed page 17
 - **Inputs:** `packet_id` (text)
 - **Output:** `{ ok: true, saved_at }` or `{ ok: false, reason }`
 - **Preconditions (checked in code, not by the AI):**
@@ -179,6 +182,7 @@ See Section 3.
   - the signature's version equals the current approved version
   - no packet has already been built for this `packet_id` and version
   - papers and drafts are read only from the stored approved packet, never from Claude
+  - the forms for this letter type are loaded by the code from the same templates the manual flow uses
 - **If a precondition fails:** hard stop. Write the reason to the log, end the loop, and show the user a plain message with a button to reopen the review screen.
 - **Why it is locked:** it creates the final signed thing that goes to the county. Everything before it can be redone; this cannot.
 
@@ -201,7 +205,9 @@ See Section 3.
 
 - Max 25 tool calls per helper run. Past that, hard stop.
 - Max 3 ordinary soft refusals in a row (bad ID, missing packet, and so on). Past that, hard stop with the message "I got stuck. Please try the manual option." Date rejections are not counted here.
-- Max 2 rewrites after a date rejection, for reasons and for explanations. On the third, the review screen opens with that reason blank or that explanation left out, for the user to write. The date counter resets each run.
+- Max 2 rewrites after a date rejection, counted separately for reasons and for explanations. The date counter resets each run.
+  - **Reasons:** on the third rejection, the draft tool saves the draft with an empty reason and returns `{ ok: true, draft_id, reason_left_blank: true }`, so the run continues. The user writes the reason on the review screen.
+  - **Explanations:** on the third rejection, the review screen opens without that explanation.
 - Max 1 hearing request and 1 restore letter per run. A new draft replaces the old one.
 - Max 10 papers per packet. The review screen enforces this; `propose_packet` soft refuses above it.
 - Internet lost mid-run: hard stop, keep the proposal, offer to continue later or go manual.
@@ -213,4 +219,4 @@ Every tool call writes one line, kept on the phone, with no redacted fields rest
 
 `time | tool name | inputs (IDs only, no text) | ok or refuse | reason if refused | approved_version at the time`
 
-Hard stops also log which rule from Section 4 or 5 fired. The log is not shown while the agent runs. The user can view it afterward from My papers and delete it.
+Hard stops also log which rule from Section 4 or 5 fired. The log is shown live on screen while the agent runs, one line per tool call. The user can also view it afterward from My papers and delete it.
