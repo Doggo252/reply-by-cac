@@ -88,3 +88,8 @@ What the student did: wrote `core/checker.py` and its 8 tests; rewrote `prompts/
 Files created or edited: `app/src/checker.ts`, `app/src/packet.ts`, `app/src/ReplyPacket.tsx`, `app/src/SignaturePad.tsx`, `app/src/App.tsx`, `app/src/LetterHome.tsx`, `app/src/Timeline.tsx`, `app/src/storage.ts`, `app/public/forms/`, `app/public/sw.js`, `core/eval/make_checker_cases.py`, `data/make_test_letters.py`, and tests.
 What I did: laid out the agent options now that fax is out; built the phone copy of the student's checker (matched to his Python on 3,800 dates and 600 forms), form filling for the hearing request and the MC 210 RV signature page, the cover sheet, the signature pad, the reply packet steps, and printable test letters.
 What the student did: chose the agent design (in progress).
+
+## 2026-10-15
+Files created or edited: `app/src/localFacts.ts`, `app/src/localFacts.test.ts`, `app/src/contradictions.ts`, `app/src/fixtures/contradiction_cases.json`, `CLAUDE.md`, `TODO.md`.
+What I did: explained the project and planned the week; fixed the phone-only reader after the student's phone test (it now finds what the county is asking for, repairs a misread case number and stops worker names at the next label), checked on the 640 test letters; matched the phone county-mistake rules to the student's fixed citation; noted Reader A's missed dates as a known weak spot.
+What the student did: ran the phone-only test and reported the three problems; fixed the cure-period citation in `core/contradictions.py`; wrote `agent/TOOLS.md` (purpose, 13 tools, the locked `build_packet`, what the agent may never do, limits, action log).
