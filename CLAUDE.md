@@ -6,7 +6,7 @@ Read this file completely before doing anything in this repository.
 
 ReplyBy (working name) is a mobile web app for the Congressional App Challenge (California District 16). The builder is a high school student working alone. Submission deadline: Monday, October 26, 2026, 9:00 am Pacific. Internal target: submit Saturday, October 24.
 
-The app: a person photographs a Medi-Cal letter. The app reads it, identifies which letter it is using two independent readers (an LLM and a small classifier the student trained), extracts the key facts for the user to confirm, computes every legal deadline from a rules file, explains the letter in plain language, fills the response forms, checks the filled forms against the confirmed facts, detects when the county itself made a mistake, and runs an agent that faxes the response and keeps a receipt.
+The app: a person photographs a Medi-Cal letter. The app reads it, identifies which letter it is using two independent readers (an LLM and a small classifier the student trained), extracts the key facts for the user to confirm, computes every legal deadline from a rules file, explains the letter in plain language, fills the response forms, checks the filled forms against the confirmed facts, detects when the county itself made a mistake, and runs an AI helper (an agent) that prepares the signed reply packet for the user to send, plus an offline watcher that warns about deadlines and county mistakes. (Fax was dropped on Oct 10; see `agent/TOOLS.md`.)
 
 Medi-Cal is California's Medicaid program. The problem: people lose coverage for paperwork reasons, not eligibility. About 69% of Medicaid disenrollments during the 2023 to 2024 unwinding were procedural.
 
@@ -27,7 +27,7 @@ The competition requires full disclosure of AI use and says AI cannot be the ent
 - `agent/TOOLS.md` (the agent tool spec and guards)
 - `data/generator_design.md` (which fields the fake-letter generator randomizes)
 
-**Everything else you build:** the web app, camera capture, OCR wiring, confirm screen, countdown UI, PDF filling, storage, offline support, the backend, the LLM API call, the agent loop that executes the student's tool spec, the fax integration, the evaluation dashboard, charts, tests for your own code, and the rendering code of the fake-letter generator (the student designs it; you write the PyMuPDF and Pillow calls).
+**Everything else you build:** the web app, camera capture, OCR wiring, confirm screen, countdown UI, PDF filling, storage, offline support, the backend, the LLM API call, the agent loop that executes the student's tool spec, the evaluation dashboard, charts, tests for your own code, and the rendering code of the fake-letter generator (the student designs it; you write the PyMuPDF and Pillow calls).
 
 ### Rule 2: log every session in AI-USE.md.
 
@@ -57,7 +57,7 @@ Never skip this. It becomes the competition's required disclosure.
 
 - Front end: React with Vite, installable as a PWA. Runs in the phone browser.
 - OCR: Tesseract.js in the browser. The photo never leaves the phone.
-- Backend: Python FastAPI. Holds the LLM API key and the fax API key. Endpoints: `/extract` (redacted text in, structured facts out), `/explain`, `/draft`, `/fax`, `/fax/status`.
+- Backend: Python FastAPI. Holds the LLM API key. Endpoints: `/extract` (redacted text in, structured facts out), `/explain`, `/draft`, `/agent` (passes the AI helper's conversation to Claude).
 - LLM: Claude via the Anthropic API, called only from the backend. Structured outputs via a JSON schema.
 - Classifier: hand-written Naive Bayes in Python (student-owned), trained offline; weights exported to `app/public/model.json` and run in the browser by `app/src/classify.ts` (you write the browser inference to match the student's Python exactly).
 - Rules: `core/rules/deadlines.json` (student-owned), evaluated by `app/src/deadlines.ts` (you write the evaluator; it must be a pure function with no dates hard-coded).
@@ -65,7 +65,7 @@ Never skip this. It becomes the competition's required disclosure.
 - Storage: IndexedDB. Receipt vault entries include a SHA-256 hash from the Web Crypto API.
 - Fake-letter generator: Python with PyMuPDF and Pillow.
 - Tests: pytest for Python, Vitest for TypeScript. One command each: `make test-py`, `make test-js`.
-- Fax: Phaxio or SRFax, behind the backend. Not needed until week 5.
+- Agent loop: runs on the phone (`app/src/agentLoop.ts`, tools in `app/src/agentTools.ts`), because the tools read papers, the timeline and the signature, which never leave the phone. The backend only relays to Claude. Decided Oct 16.
 
 ## Repository layout
 
@@ -92,7 +92,7 @@ core/
 prompts/                student-owned
 agent/
   TOOLS.md              student-owned spec
-  loop.py               you write; executes only the tools in TOOLS.md
+                        (the loop itself is app/src/agentLoop.ts; it runs only the tools in TOOLS.md)
 backend/
 app/
 ```
@@ -137,9 +137,9 @@ Anything else is "unknown" and gets the generic path.
 
 - Before any text is sent to the LLM, blank out digit strings of 6 or more characters (case numbers, SSNs). Unit test this.
 - API keys live only in backend environment variables. Never in the app bundle. Never committed.
-- Nothing is sent to a county without the user tapping Send after signing. The `send_fax` tool refuses unless `checker_passed == True` and `signed == True`. Unit test this guard.
+- Nothing is sent to a county by the app; the user sends the packet. The locked `build_packet` tool refuses unless the check passed and the user signed, both for the current approved version (`agent/TOOLS.md`, Section 3). Unit test this guard.
 - LLM explanations are rejected if they contain a date that is not in the confirmed facts. Unit test this.
-- The app must run in airplane mode for capture, OCR, classification (Reader B), confirm, deadlines, checker, and vault. Only `/extract`, `/explain`, `/draft`, and `/fax` need the network.
+- The app must run in airplane mode for capture, OCR, classification (Reader B), confirm, deadlines, checker, and vault. Only `/extract`, `/explain`, `/draft`, and `/agent` need the network.
 
 ## Milestones
 
@@ -147,7 +147,7 @@ Anything else is "unknown" and gets the generic path.
 - Sun Sept 27: photo of a printed mock letter returns structured facts on the phone; both readers wired; disagreement case handled.
 - Sun Oct 4: photo to countdown works end to end; accuracy numbers for both readers saved in `core/eval/`.
 - Sun Oct 11: full flow end to end including forms, checker, timeline, vault. Scope freeze.
-- Sun Oct 18: agent with real fax round trip; evaluation dashboard; airplane-mode test; user testing done.
+- Sun Oct 18: AI helper working end to end; evaluation dashboard; airplane-mode test; user testing done.
 - Sat Oct 24: submit.
 
 ## Definition of done for the demo video
@@ -158,8 +158,8 @@ Anything else is "unknown" and gets the generic path.
 - The explanation switches to Spanish.
 - An upload receipt is added; the timeline flags "returned before the effective date"; the rescission request and hearing request draft themselves.
 - The checker catches a planted wrong date; the user fixes it and signs.
-- The agent runs with its action log visible; the fax receipt lands in the vault.
-- The rules tests run green; the `send_fax` guard refuses an unsigned send; airplane mode works.
+- The agent runs with its action log visible; the signed packet lands in the vault.
+- The rules tests run green; the `build_packet` guard refuses an unsigned packet; airplane mode works.
 
 ## First session: do these in order
 

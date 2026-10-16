@@ -18,6 +18,8 @@ export type Redacted = {
   text: string
   // How many of each kind were blanked.
   counts: Record<string, number>
+  // The names it found, so the same names can be blanked in other text too.
+  names: string[]
 }
 
 // Not a bare "name" label: that would also catch "Worker name".
@@ -109,9 +111,13 @@ function escapeForRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-export function redact(input: string): Redacted {
+// `alsoBlank` is for the AI helper (agentLoop.ts): names and address words we
+// already know belong to the person, blanked wherever they appear even with no
+// label next to them. Only the phone uses it; letter text sent by readerA.ts
+// does not, so backend/redact.py still gives the same answers.
+export function redact(input: string, alsoBlank: string[] = []): Redacted {
   const counts: Record<string, number> = { ssn: 0, number: 0, case: 0, name: 0, address: 0 }
-  const found: [string, string][] = [] // [value, kind] seen after a label
+  const found: [string, string][] = alsoBlank.map((value) => [value, 'name']) // [value, kind] seen after a label
   let text = input
 
   for (const rule of RULES) {
@@ -176,5 +182,6 @@ export function redact(input: string): Redacted {
       }
     }
   }
-  return { text, counts }
+  const names = found.filter(([, kind]) => kind === 'name').map(([value]) => value)
+  return { text, counts, names }
 }

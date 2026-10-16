@@ -108,6 +108,17 @@ $7 left. Only one more full test run, near submission.**
       an iteration cap, the action-log format.
 - [ ] **Thu 10/15 (1.5h)** [C] builds the agent loop from the spec. [N] tests
       that the locked tool refuses an unsigned send and logs why.
+  - [x] [N] `agent/TOOLS.md` finished (10/16).
+  - [x] [C] Loop core on the phone: `app/src/agentLoop.ts`, the 13 tools in
+        `app/src/agentTools.ts`, the date check copied to the phone
+        (`grounding.ts`), and tests. Not wired to the screens yet.
+  - [ ] [N] Write `prompts/agent.md`: what the AI helper should do and in
+        what order (the system prompt). The loop has no instructions without it.
+  - [ ] [N] The `build_packet` guard tests, in `app/src/agentGuard.test.ts`
+        (one test per Section 3 precondition).
+  - [ ] [C] Backend `/agent` endpoint that passes the conversation to Claude.
+  - [ ] [C] The screens: AI helper button, live action log, review screen,
+        consent message; the watcher on app open.
 - [ ] **Fri 10/16 (1h)** [N] Test with Grandpa and Grandma (the real users;
       no partner organization has replied). Say nothing, watch, write down
       every hesitation.
