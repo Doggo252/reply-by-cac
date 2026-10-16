@@ -5,7 +5,7 @@
 1. **Start:** When the user taps "Use AI to prepare my response". Internet is required, else the button is greyed out and only the manual button works. If the user chose "Keep everything on my phone", the button is not shown at all.
 2. **All letters:** For every letter type, suggest papers to pick or ask for a photo.
 3. **Privacy:** Before anything is sent to the AI model, the app redacts PII (name, address, case number, account numbers, social security number, birthdate). The user is told that three things are sent, all with private details removed: the text and facts from the letter, their own timeline notes, and the text from their papers. Their sensitive data stays on the phone. If the user says no, they manually choose the papers for the packet and draft the reason.
-4. **For MC 239 A only:** The agent drafts the hearing request. If a county mistake is found, it also drafts the restore letter. If no mistake is found, no restore letter is suggested.
+4. **For MC 239 A only:** The agent drafts the hearing request. If a county mistake is found, it also drafts the restore letter. If no mistake is found, no restore letter is suggested. The user can remove either draft on the review screen.
 5. **Review and sign:** The user checks the responses, fixes yellow boxes and signs. The check must pass before they can sign. After they sign, the packet is saved into My papers.
 6. **Control:** If the agent tries to make the packet before the signature, or while checker errors are unfixed, the application code prevents it. The application code also ensures deadline rules and county rules are followed and not made up.
 7. **Watcher:** Plain app code, not AI, and works offline. After a letter is saved or a packet is prepared, the next time the user opens the app the watcher warns of any deadline in 7 days or less and lets them confirm whether they have acted. When the user records a new event or letter, the watcher applies the deadline and county-mistake rules and, if there is an issue, offers a button to start the AI helper for the hearing request and restore letter.
@@ -99,7 +99,7 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
   - letter exists and `letter_type` is MC 239 A
   - `reason_text` contains no date that is not in the confirmed facts or the timeline
 - **If a precondition fails:** soft refuse, so Claude can rewrite the reason. On the third date rejection in a run, the code saves the draft with an empty reason and returns ok (Section 5).
-- **Why it is not locked:** it is only a draft the review screen shows before anything is approved.
+- **Why it is not locked:** it is only a draft the review screen shows before anything is approved, and the user can remove it there.
 
 ### draft_restore_letter
 
@@ -111,7 +111,7 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
   - `mistake_id` was returned by `check_county_mistake` for this letter
   - `reason_text` contains no date that is not in the confirmed facts or the timeline
 - **If a precondition fails:** soft refuse, so Claude can rewrite the reason. On the third date rejection in a run, the code saves the draft with an empty reason and returns ok (Section 5). A restore letter is never drafted when no mistake was found.
-- **Why it is not locked:** it is only a draft shown on the review screen.
+- **Why it is not locked:** it is only a draft shown on the review screen, and the user can remove it there.
 
 ### propose_packet
 
@@ -128,7 +128,7 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
 
 ### run_checker
 
-- **What it does:** compares the facts on the drafted forms with the letter's confirmed facts and reports mismatches as yellow boxes. The code stores the result with the current version. A pass with no yellow boxes is a normal result.
+- **What it does:** compares the facts on the drafted forms with the letter's confirmed facts and reports mismatches as yellow boxes. Only drafts still in the packet are checked. The code stores the result with the current version. A pass with no yellow boxes is a normal result.
 - **Inputs:** `packet_id` (text)
 - **Output:** `{ ok: true, pass: true, version }` or `{ ok: true, pass: false, version, yellow_boxes: [{ yellow_box_id, form, field, found, expected }] }` or `{ ok: false, reason }`
 - **Preconditions (checked in code, not by the AI):**
@@ -138,9 +138,9 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
 
 ### open_review_screen
 
-- **What it does:** shows the user the proposed papers, the draft reasons and any yellow boxes. They can add or remove papers, edit reasons (including writing a reason that was left blank) and fix yellow boxes. The screen does not allow more than 10 papers; the user is told at the limit, and this is not a tool refusal. On Done, the code bumps `approved_version`, clears the stored check result and signature, reruns the checker and stores the new result. Cancelling is a normal result.
+- **What it does:** shows the user the proposed papers, the drafts and any yellow boxes. They can add or remove papers, untick the hearing request or the restore letter to remove it from the packet (same checkboxes as the manual flow), edit reasons (including writing a reason that was left blank) and fix yellow boxes. The screen does not allow more than 10 papers; the user is told at the limit, and this is not a tool refusal. On Done, the code bumps `approved_version`, clears the stored check result and signature, reruns the checker and stores the new result. Cancelling is a normal result.
 - **Inputs:** `packet_id` (text), `explanations` (list of `{ yellow_box_id, plain_words }`)
-- **Output:** `{ ok: true, approved_version, changed: true/false, check: pass/fail }` or `{ ok: false, reason: "cancelled" }`
+- **Output:** `{ ok: true, approved_version, changed: true/false, check: pass/fail, drafts_kept: [draft_id] }` or `{ ok: false, reason: "cancelled" }`
 - **Preconditions (checked in code, not by the AI):**
   - a proposed or approved packet with this `packet_id` exists
   - every explanation refers to a real yellow box from the last check
@@ -169,7 +169,7 @@ See Section 3.
 ### build_packet (LOCKED)
 
 - **What it does:** assembles the final response packet and saves it to My papers, once. The packet contains the approved papers plus the same forms the manual flow makes for that letter type:
-  - **MC 239 A:** the signed hearing request draft, and the signed restore letter draft if one was approved
+  - **MC 239 A:** the cover sheet, the signed hearing request draft if the user kept it, and the signed restore letter draft if one was approved and kept
   - **MC 355:** the cover sheet
   - **MC 210 RV (renewal):** the cover sheet and the signed page 17
 - **Inputs:** `packet_id` (text)
@@ -181,12 +181,12 @@ See Section 3.
   - a signature from the signature pad is stored for this packet
   - the signature's version equals the current approved version
   - no packet has already been built for this `packet_id` and version
-  - papers and drafts are read only from the stored approved packet, never from Claude
+  - papers and drafts are read only from the stored approved packet, never from Claude; drafts the user unticked are not included
   - the forms for this letter type are loaded by the code from the same templates the manual flow uses
 - **If a precondition fails:** hard stop. Write the reason to the log, end the loop, and show the user a plain message with a button to reopen the review screen.
 - **Why it is locked:** it creates the final signed thing that goes to the county. Everything before it can be redone; this cannot.
 
-**How the version rule works.** Every Done on the review screen gives the packet a new `approved_version`. The check result and the signature are each stored with the version they were made against. Any edit after signing clears both, so the user must pass the check and sign again. `build_packet` only builds when both versions match the current one. That is the one-sentence answer to "what if the AI changes the papers after the user signs?": it can't, because `build_packet` only reads what the code stored at review and signing.
+**How the version rule works.** Every Done on the review screen gives the packet a new `approved_version`. The check result and the signature are each stored with the version they were made against. Any edit after signing, including removing a draft, clears both, so the user must pass the check and sign again. `build_packet` only builds when both versions match the current one. That is the one-sentence answer to "what if the AI changes the papers after the user signs?": it can't, because `build_packet` only reads what the code stored at review and signing.
 
 ## 4. Never
 
@@ -195,6 +195,7 @@ See Section 3.
 - In phone-only mode the AI helper is never offered, and all `get_` tools refuse.
 - Claude never supplies a signature. Signatures come only from the signature pad.
 - Claude never passes a paper list, a draft, a rule or a signature to `build_packet`. Only a `packet_id`.
+- Claude never adds a draft back after the user removed it. Only the user can change what is in the packet, on the review screen.
 - Deadline rules, county-mistake rules and law citations come only from the app's rule tables, never from Claude.
 - Any reason, explanation or draft text from Claude containing a date not in the confirmed facts or the timeline is rejected.
 - Any edit after signing clears the signature and the check result. Nothing is built from an old signature.
