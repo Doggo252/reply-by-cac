@@ -108,7 +108,7 @@ def check_rule_2(events, notice_date, effective_date):
             "rule": 2,
             "date": papers_date,
             "needs_proof": needs_proof,
-            "citation": "W&IC 14005.37(a), MEDIL I15-22EE",
+            "citation": "W&IC 14005.37(a), MEDIL I15-22E",
             "reason": "Papers came in during the 90-day cure period, but coverage was not restored. If your coverage isn't back soon, check with your county." # we should allow some time for the county to process, but firing right away to let the user know they are in the right.
         }
     else:

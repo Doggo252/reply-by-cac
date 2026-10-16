@@ -124,6 +124,15 @@ $7 left. Only one more full test run, near submission.**
 - [ ] **Sun 10/18 (2.5h)** [N] Airplane-mode test. Write the video script
       (under 450 words). Record a rough cut as insurance for week 6.
 
+- [ ] **Weak spot: Reader A misses dates** (notice date right 68%, effective
+      date 69%, due date 90%; it leaves them blank, never makes them up).
+      - [ ] Thu [N] During the phone run, check that blank dates are flagged
+            and easy to type in.
+      - [ ] Sat [C] Show the date table (right, wrong, missed, made up) on the
+            evaluation dashboard.
+      - [ ] Sun [N] Mention it in one line of the video script and explain
+            why the confirm screen exists.
+
 ---
 
 ## Week 6: video and submission
@@ -149,6 +158,10 @@ $7 left. Only one more full test run, near submission.**
 - **Week 6 has 1.5 hours to record and 1 hour to edit.** The rough cut on
   Sunday 10/18 is the insurance.
 - **Offline mode needs a real https address.** Set up Saturday 10/17.
+
+- **Reader A misses dates** (notice date only 68%). The confirm screen
+  catches it, but the user has to type them. No prompt rework before
+  submission.
 
 ## Open questions
 
