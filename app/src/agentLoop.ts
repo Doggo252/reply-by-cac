@@ -17,11 +17,13 @@ export const MAX_TOOL_CALLS = 25
 export const MAX_REFUSALS_IN_A_ROW = 3
 const STUCK = 'I got stuck. Please try the manual option.'
 
-// The conversation, in the shape the Anthropic API uses, so the backend can
-// pass it straight through.
+// The conversation, in a simple shape (the one Anthropic's API uses). The
+// backend translates it for Gemini (backend/agent.py). `signature` is a code
+// Gemini hands back with each answer and needs returned unchanged; the phone
+// just carries it.
 export type Block =
-  | { type: 'text'; text: string }
-  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  | { type: 'text'; text: string; signature?: string }
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown>; signature?: string }
   | { type: 'tool_result'; tool_use_id: string; content: string }
 export type Message = { role: 'user' | 'assistant'; content: string | Block[] }
 

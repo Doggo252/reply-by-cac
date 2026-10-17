@@ -50,3 +50,27 @@ def ask_for_json(prompt):
         return json.loads(text)
     except (KeyError, IndexError, ValueError) as error:
         raise LLMError("model did not return valid JSON") from error
+
+
+def ask_with_tools(instructions, contents, tools):
+    """For the AI helper: sends the conversation and the tool list, and returns
+    the parts of the model's answer (text and tool calls)."""
+    key = os.getenv("GEMINI_API_KEY")
+    if not key:
+        raise LLMError("GEMINI_API_KEY is not set in backend/.env")
+    body = {
+        "systemInstruction": {"parts": [{"text": instructions}]},
+        "contents": contents,
+        "tools": [{"functionDeclarations": tools}],
+        "generationConfig": {"thinkingConfig": THINKING},
+    }
+    try:
+        response = httpx.post(URL, json=body, headers={"x-goog-api-key": key}, timeout=60)
+    except httpx.HTTPError as error:
+        raise LLMError(f"could not reach the model: {error}") from error
+    if response.status_code != 200:
+        raise LLMError(f"model returned {response.status_code}")
+    try:
+        return response.json()["candidates"][0]["content"]["parts"]
+    except (KeyError, IndexError, ValueError) as error:
+        raise LLMError("model gave no answer") from error

@@ -1,16 +1,15 @@
 """ReplyBy backend.
 
 This exists for one reason: some things cannot happen on the phone. The
-Anthropic API key and the fax API key must never ship inside the app, because
-anyone can read an app's code. So the phone talks to this server, and this
-server is the only thing that holds the keys.
+AI model's API key must never ship inside the app, because anyone can read an
+app's code. So the phone talks to this server, and this server is the only
+thing that holds the key.
 
 Endpoints arrive over the next few weeks:
   /extract     redacted letter text in, structured facts out   (week 2)
   /explain     confirmed facts in, plain-language summary out  (week 3)
   /draft       findings and timeline in, draft letters out     (week 4)
-  /fax         send a signed packet                            (week 5)
-  /fax/status  check on a sent fax                             (week 5)
+  /agent       the AI helper's conversation in, its next step out (week 5)
 
 Run it from the repository root:
     .venv/bin/uvicorn backend.main:app --reload
@@ -26,7 +25,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from backend import llm
+from backend import agent, llm
 from backend.grounding import invented_dates
 from backend.redact import redact
 
@@ -207,3 +206,32 @@ def draft(request: DraftRequest):
             continue
         return {p: answer[p] for p in DRAFT_PARTS}
     raise HTTPException(status_code=502, detail=problem)
+
+
+# The AI helper ------------------------------------------------------------------
+
+class AgentRequest(BaseModel):
+    # The conversation so far, in the phone's shape (see backend/agent.py).
+    messages: list[dict]
+    # The tools from app/src/agentTools.ts: name, description, inputs.
+    tools: list[dict]
+
+
+@app.post("/agent")
+def agent_step(request: AgentRequest):
+    """One step of the AI helper: the model reads the conversation and either
+    asks for tools or says it is done. The loop itself runs on the phone."""
+    unknown = [t.get("name") for t in request.tools if t.get("name") not in agent.AGENT_TOOLS]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"not in agent/TOOLS.md: {unknown}")
+    instructions_file = PROMPTS / "agent.md"
+    if not instructions_file.exists():
+        raise HTTPException(status_code=503, detail="prompts/agent.md is not written yet")
+    calls_so_far = sum(1 for m in request.messages if isinstance(m["content"], list)
+                       for b in m["content"] if b.get("type") == "tool_use")
+    try:
+        parts = llm.ask_with_tools(instructions_file.read_text(), agent.to_gemini(request.messages),
+                                   agent.declarations(request.tools))
+    except llm.LLMError as error:
+        raise HTTPException(status_code=503, detail=str(error))
+    return {"content": agent.from_gemini(parts, calls_so_far)}
