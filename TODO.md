@@ -108,12 +108,30 @@ $7 left. Only one more full test run, near submission.**
       an iteration cap, the action-log format.
 - [ ] **Thu 10/15 (1.5h)** [C] builds the agent loop from the spec. [N] tests
       that the locked tool refuses an unsigned send and logs why.
+  - [x] [N] `agent/TOOLS.md` finished (10/16).
+  - [x] [C] Loop core on the phone: `app/src/agentLoop.ts`, the 13 tools in
+        `app/src/agentTools.ts`, the date check copied to the phone
+        (`grounding.ts`), and tests. Not wired to the screens yet.
+  - [ ] [N] Write `prompts/agent.md`: what the AI helper should do and in
+        what order (the system prompt). The loop has no instructions without it.
+  - [ ] [N] The `build_packet` guard tests, in `app/src/agentGuard.test.ts`
+        (one test per Section 3 precondition).
+  - [ ] [C] Backend `/agent` endpoint that passes the conversation to Claude.
+  - [ ] [C] The screens: AI helper button, live action log, review screen,
+        consent message; the watcher on app open.
 - [ ] **Fri 10/16 (1h)** [N] Test with Grandpa and Grandma (the real users;
       no partner organization has replied). Say nothing, watch, write down
       every hesitation.
 - [ ] **Sat 10/17 (2.5h)** [N] Fix the top 5 problems with Claude.
       [C] puts the app on a real https address (needed for offline mode and
       so judges can open it), and builds the evaluation dashboard screen.
+  - [ ] [C] Prefill "About you" from the letter, on the phone (no AI: the
+        name and address are blanked before the AI sees anything). The
+        person must confirm the address, or type a new one if they moved.
+        Agreed 10/15; candidate for the top 5 list.
+  - [ ] [C] With the agent loop: rename "Get my reply ready" to "Manually
+        prepare my response", and add "Use AI to prepare my response" for
+        the agent (Neil's wording, 10/15).
 - [ ] **Sun 10/18 (2.5h)** [N] Airplane-mode test. Write the video script
       (under 450 words). Record a rough cut as insurance for week 6.
 
@@ -158,7 +176,9 @@ $7 left. Only one more full test run, near submission.**
 
 ## Open questions
 
-- [ ] What does the agent do without fax? (Saturday 10/10)
+- [x] What does the agent do without fax? Neil picked option C (packet
+      helper and follow-up watcher) on 10/15. Claude, through the backend,
+      picks each next step. Spec in progress in `agent/TOOLS.md`.
 - [ ] Tell Mom the Phaxio account is on hold.
 - [ ] Hosting: where the backend lives once the app is online. Claude will
       propose options before 10/17; it may need a parent for the account.
