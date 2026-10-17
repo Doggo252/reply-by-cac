@@ -1,4 +1,4 @@
-// "Get my reply ready": the steps from a checked letter to a signed packet.
+// "Manually prepare my response": the steps from a checked letter to a signed packet.
 //   1. About you      name and address for the forms (kept on this phone)
 //   2. What goes in   the forms for this letter, and papers from the vault
 //   3. Check          Neil's checker compares the papers to the letter
@@ -6,7 +6,7 @@
 //   5. Done           the packet is saved to My papers, ready to print or share
 //
 // Each step is one plain function underneath (fill, check, sign, build), so
-// the agent in week 5 can run the same steps, under Neil's rules in
+// the AI helper (AgentHelper.tsx) runs the same steps, under Neil's rules in
 // agent/TOOLS.md.
 import { useEffect, useState } from 'react'
 import { check, type Mismatch } from './checker'
@@ -295,7 +295,7 @@ export default function ReplyPacket({ letter, onBack }: { letter: SavedLetter; o
 }
 
 // The packet is made. Print it, share it, then mark it sent.
-function Done({ paper, onBack }: { paper: Paper; onBack: () => void }) {
+export function Done({ paper, onBack }: { paper: Paper; onBack: () => void }) {
   const [url] = useState(() => URL.createObjectURL(paper.file))
   const [sent, setSent] = useState(false)
   useEffect(() => () => URL.revokeObjectURL(url), [url])
@@ -347,7 +347,7 @@ function Done({ paper, onBack }: { paper: Paper; onBack: () => void }) {
   )
 }
 
-function AboutForm({ about, onSave, onBack }: { about: AboutYou | null; onSave: (about: AboutYou) => void; onBack: () => void }) {
+export function AboutForm({ about, onSave, onBack }: { about: AboutYou | null; onSave: (about: AboutYou) => void; onBack: () => void }) {
   const [form, setForm] = useState<AboutYou>(
     about ?? { name: '', phone: '', street: '', city: '', zip: '', county: 'Santa Clara' }
   )
@@ -399,7 +399,7 @@ function letterValue(field: string, value: string): string {
   return field.endsWith('_date') && /^\d{4}-\d{2}-\d{2}$/.test(value) ? inWords(value, false) : value
 }
 
-async function fetchForm(path: string): Promise<Uint8Array> {
+export async function fetchForm(path: string): Promise<Uint8Array> {
   const response = await fetch(path)
   if (!response.ok) throw new Error('A form could not be loaded. Please try again with internet.')
   return new Uint8Array(await response.arrayBuffer())

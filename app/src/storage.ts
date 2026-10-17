@@ -92,6 +92,10 @@ export type SavedLetter = {
   letterType: string
   facts: Record<string, string | null>
   mode: ReadingMode
+  // The words read off the photo, for the AI helper (it blanks private
+  // details before anything is sent). Letters saved before Oct 17 have none.
+  text?: string
+  savedAt?: string
 }
 
 // localStorage can be blocked (private browsing), so every use is wrapped
@@ -115,6 +119,11 @@ function save(key: string, value: unknown) {
 
 export const loadLetter = () => load<SavedLetter>('replyby-letter')
 export const saveLetter = (letter: SavedLetter | null) => save('replyby-letter', letter)
+
+// The AI helper's action log from its last run (TOOLS.md, Section 6). IDs and
+// fixed words only, never text. The person can read it in My papers and delete it.
+export const loadHelperLog = () => load<string[]>('replyby-helper-log')
+export const saveHelperLog = (lines: string[] | null) => save('replyby-helper-log', lines)
 
 // The drafts the AI wrote from Neil's draft prompt, kept for the packet.
 export type SavedDrafts = { rescission_letter: string; hearing_reason: string }

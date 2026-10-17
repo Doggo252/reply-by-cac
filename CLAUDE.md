@@ -57,15 +57,15 @@ Never skip this. It becomes the competition's required disclosure.
 
 - Front end: React with Vite, installable as a PWA. Runs in the phone browser.
 - OCR: Tesseract.js in the browser. The photo never leaves the phone.
-- Backend: Python FastAPI. Holds the LLM API key. Endpoints: `/extract` (redacted text in, structured facts out), `/explain`, `/draft`, `/agent` (passes the AI helper's conversation to Claude).
-- LLM: Claude via the Anthropic API, called only from the backend. Structured outputs via a JSON schema.
+- Backend: Python FastAPI. Holds the LLM API key. Endpoints: `/extract` (redacted text in, structured facts out), `/explain`, `/draft`, `/agent` (passes the AI helper's conversation to Gemini; `backend/agent.py` translates it).
+- LLM: Google Gemini (`gemini-3.5-flash`, pinned in `backend/llm.py`), called only from the backend. JSON answers. (The plan said Claude; Gemini was chosen early on and the key and credit are Gemini's.)
 - Classifier: hand-written Naive Bayes in Python (student-owned), trained offline; weights exported to `app/public/model.json` and run in the browser by `app/src/classify.ts` (you write the browser inference to match the student's Python exactly).
 - Rules: `core/rules/deadlines.json` (student-owned), evaluated by `app/src/deadlines.ts` (you write the evaluator; it must be a pure function with no dates hard-coded).
 - PDF filling: pdf-lib in the browser.
 - Storage: IndexedDB. Receipt vault entries include a SHA-256 hash from the Web Crypto API.
 - Fake-letter generator: Python with PyMuPDF and Pillow.
 - Tests: pytest for Python, Vitest for TypeScript. One command each: `make test-py`, `make test-js`.
-- Agent loop: runs on the phone (`app/src/agentLoop.ts`, tools in `app/src/agentTools.ts`), because the tools read papers, the timeline and the signature, which never leave the phone. The backend only relays to Claude. Decided Oct 16.
+- Agent loop: runs on the phone (`app/src/agentLoop.ts`, tools in `app/src/agentTools.ts`), because the tools read papers, the timeline and the signature, which never leave the phone. The backend only relays to Gemini. Decided Oct 16.
 
 ## Repository layout
 

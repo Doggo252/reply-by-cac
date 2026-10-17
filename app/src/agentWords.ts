@@ -1,0 +1,54 @@
+// Plain words for the AI helper's screens. Kept apart from the screen itself
+// so they can be tested.
+import type { LogLine } from './agentLoop'
+import type { Draft } from './agentTools'
+
+// What each tool is doing, in words a person reads on the live log.
+const DOING: Record<string, string> = {
+  get_letter: 'Reading your letter',
+  get_timeline: 'Looking at your timeline',
+  list_papers: 'Looking at the list of your papers',
+  get_paper_text: 'Reading one of your papers',
+  request_photo: 'Asking you for a photo',
+  check_county_mistake: 'Checking whether the county made a mistake',
+  draft_hearing_request: 'Writing your hearing request',
+  draft_restore_letter: 'Writing your letter asking the county to restore your Medi-Cal',
+  propose_packet: 'Choosing what goes in your reply',
+  run_checker: 'Checking your reply against your letter',
+  open_review_screen: 'Showing you everything to look over',
+  ask_user_to_sign: 'Asking you to sign',
+  build_packet: 'Making your final reply packet',
+}
+
+// One log line, in plain words: "✓ Reading your letter".
+export function logWords(line: LogLine): string {
+  const doing = DOING[line.tool] ?? (line.tool === '(stop)' ? 'Stopped' : `Tried "${line.tool}"`)
+  if (line.outcome === 'ok') return `✓ ${doing}`
+  if (line.outcome === 'stop') return `■ ${doing}: stopped`
+  if (line.reason === 'cancelled' || line.reason === 'declined') return `${doing}: you said not now`
+  return `↻ ${doing}: not allowed, trying another way`
+}
+
+// TOOLS.md, Section 6: the exact line the spec asks for.
+export function logRecord(line: LogLine): string {
+  return [line.time.slice(11, 19), line.tool, line.inputs || '-', line.outcome, line.reason || '-', `v${line.version ?? '-'}`].join(' | ')
+}
+
+// The body of the restore letter from the AI helper's draft. The code adds
+// the law from Neil's county-mistake rules; the header (to, from, case
+// number, date) is added by buildPacket.
+export function restoreLetterBody(draft: Draft): string {
+  const parts = ['I am asking you to restore my Medi-Cal.']
+  if (draft.reason.trim()) parts.push(draft.reason.trim())
+  if (draft.citation) parts.push(`This is required by ${draft.citation}.`)
+  parts.push('Thank you.')
+  return parts.join('\n\n')
+}
+
+// One short ID per letter, so the helper's packet stays tied to the letter it
+// was for. The app holds one letter at a time, so the type and the day it was
+// saved are enough: "letter-MC_239A-1017".
+export function letterId(letter: { letterType: string; facts: Record<string, string | null>; savedAt?: string }): string {
+  const day = (letter.savedAt ?? letter.facts.notice_date ?? '').slice(5, 10).replace('-', '')
+  return `letter-${letter.letterType}${day ? `-${day}` : ''}`
+}

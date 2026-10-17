@@ -9,6 +9,7 @@ import LetterHome from './LetterHome'
 import Timeline from './Timeline'
 import Vault from './Vault'
 import ReplyPacket from './ReplyPacket'
+import AgentHelper from './AgentHelper'
 import { loadLetter, saveDrafts, saveLetter, type SavedLetter } from './storage'
 
 type Tab = 'letter' | 'happened' | 'papers'
@@ -16,8 +17,13 @@ type Tab = 'letter' | 'happened' | 'papers'
 export default function App() {
   const [tab, setTab] = useState<Tab>('letter')
   const [letter, setLetter] = useState<SavedLetter | null>(loadLetter)
-  // On the My letter tab: the letter itself, or the steps to make the reply.
-  const [makingReply, setMakingReply] = useState(false)
+  // On the My letter tab: the letter itself, the manual reply steps, or the AI helper.
+  const [reply, setReply] = useState<'none' | 'manual' | 'helper'>('none')
+
+  function showReply(next: 'none' | 'manual' | 'helper') {
+    setReply(next)
+    window.scrollTo(0, 0)
+  }
 
   function keepLetter(checked: SavedLetter | null) {
     saveLetter(checked)
@@ -28,7 +34,7 @@ export default function App() {
   function newLetter() {
     if (!window.confirm('Read a different letter? The deadlines for this one will be cleared.')) return
     saveDrafts(null)
-    setMakingReply(false)
+    setReply('none')
     keepLetter(null)
   }
 
@@ -42,23 +48,17 @@ export default function App() {
       <main className="screen">
         <p className="app-name">ReplyBy</p>
         {tab === 'letter' &&
-          (letter && makingReply ? (
-            <ReplyPacket
-              letter={letter}
-              onBack={() => {
-                setMakingReply(false)
-                window.scrollTo(0, 0)
-              }}
-            />
+          (letter && reply === 'manual' ? (
+            <ReplyPacket letter={letter} onBack={() => showReply('none')} />
+          ) : letter && reply === 'helper' ? (
+            <AgentHelper letter={letter} onBack={() => showReply('none')} onManual={() => showReply('manual')} />
           ) : letter ? (
             <LetterHome
               letter={letter}
               onNewLetter={newLetter}
               onAddEvent={() => open('happened')}
-              onMakeReply={() => {
-                setMakingReply(true)
-                window.scrollTo(0, 0)
-              }}
+              onMakeReply={() => showReply('manual')}
+              onUseHelper={() => showReply('helper')}
             />
           ) : (
             <Capture onDone={keepLetter} />

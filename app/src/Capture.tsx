@@ -246,7 +246,7 @@ function AfterReading({ read, mode, onDone, onRetake }: {
         read={read}
         mode={mode}
         letterType={picked}
-        onConfirm={(facts) => onDone({ letterType: picked, facts, mode })}
+        onConfirm={(facts) => onDone({ letterType: picked, facts, mode, text: read.ocr.text, savedAt: new Date().toISOString() })}
       />
       {retake}
     </>

@@ -2,7 +2,7 @@
 // with a fingerprint (its SHA-256 hash) taken the moment it was saved. If the
 // file were ever changed, its fingerprint would no longer match.
 import { useEffect, useState } from 'react'
-import { addPaper, listPapers, removePaper, type Paper } from './storage'
+import { addPaper, listPapers, loadHelperLog, removePaper, saveHelperLog, type Paper } from './storage'
 import { fingerprint, shortPrint } from './fingerprint'
 import { savedOn } from './words'
 
@@ -10,6 +10,7 @@ export default function Vault() {
   const [papers, setPapers] = useState<Paper[] | null>(null)
   const [saving, setSaving] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
+  const [helperLog, setHelperLog] = useState<string[] | null>(loadHelperLog)
 
   async function refresh() {
     try {
@@ -73,6 +74,28 @@ export default function Vault() {
         <p className="hint">
           The fingerprint is a code made from the file itself. If anyone changed the file, the code would change too.
         </p>
+      )}
+
+      {helperLog && helperLog.length > 0 && (
+        <div className="card">
+          <h2>What the AI helper did last time</h2>
+          <p className="small">One line per step: time, step, IDs, result, why, version. No private words.</p>
+          <ol className="action-log">
+            {helperLog.map((line, i) => (
+              <li key={i} className="log-record">{line}</li>
+            ))}
+          </ol>
+          <button
+            className="link danger"
+            onClick={() => {
+              if (!window.confirm('Delete the AI helper log?')) return
+              saveHelperLog(null)
+              setHelperLog(null)
+            }}
+          >
+            Delete this log
+          </button>
+        </div>
       )}
     </>
   )

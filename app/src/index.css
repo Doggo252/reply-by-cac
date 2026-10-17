@@ -626,3 +626,19 @@ details.dev summary {
 .checklist li {
   margin-top: 0.4rem;
 }
+
+/* The AI helper's live action log. */
+.action-log {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+.action-log li {
+  margin-bottom: 0.5rem;
+}
+.log-record {
+  display: block;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.72rem;
+  color: #6b665d;
+  overflow-wrap: anywhere;
+}
