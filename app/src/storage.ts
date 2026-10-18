@@ -125,6 +125,14 @@ export const saveLetter = (letter: SavedLetter | null) => save('replyby-letter',
 export const loadHelperLog = () => load<string[]>('replyby-helper-log')
 export const saveHelperLog = (lines: string[] | null) => save('replyby-helper-log', lines)
 
+// Deadlines the person told the watcher they already took care of, for one letter.
+type Done = { letter: string; ids: string[] }
+export function loadDone(letter: string): string[] {
+  const done = load<Done>('replyby-done')
+  return done && done.letter === letter ? done.ids : []
+}
+export const saveDone = (letter: string, ids: string[]) => save('replyby-done', { letter, ids })
+
 // The drafts the AI wrote from Neil's draft prompt, kept for the packet.
 export type SavedDrafts = { rescission_letter: string; hearing_reason: string }
 export const loadDrafts = () => load<SavedDrafts>('replyby-drafts')

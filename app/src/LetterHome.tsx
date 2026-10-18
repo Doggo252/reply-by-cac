@@ -4,6 +4,7 @@ import type { SavedLetter } from './storage'
 import { inWords, plain } from './words'
 import Countdowns from './Countdowns'
 import Explanation from './Explanation'
+import Watcher from './Watcher'
 
 export default function LetterHome({ letter, onNewLetter, onAddEvent, onMakeReply, onUseHelper }: {
   letter: SavedLetter
@@ -31,6 +32,7 @@ export default function LetterHome({ letter, onNewLetter, onAddEvent, onMakeRepl
 
   return (
     <>
+      <Watcher letter={letter} helperOffered={mode === 'ai' && online} onUseHelper={onUseHelper} onMakeReply={onMakeReply} />
       <h1 className="page-title">Your letter</h1>
       <span className="step">Step 3 of 3</span>
       <div className="card">

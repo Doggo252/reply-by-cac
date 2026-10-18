@@ -642,3 +642,11 @@ details.dev summary {
   color: #6b665d;
   overflow-wrap: anywhere;
 }
+
+/* The watcher's warnings: deadlines 7 days away or less, county mistakes. */
+.card.warning {
+  border: 3px solid var(--amber);
+}
+.card.warning h2 {
+  margin-top: 0;
+}
