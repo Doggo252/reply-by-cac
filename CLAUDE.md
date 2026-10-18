@@ -49,7 +49,8 @@ Never skip this. It becomes the competition's required disclosure.
 - Keep the code simple and readable. Prefer plain functions over clever abstractions. Add short comments a high schooler can follow.
 - Ask before adding any dependency. Keep the dependency list short.
 - No agent frameworks. The agent loop is a plain loop the student can read.
-- Run the tests after every change. Small commits with clear messages.
+- Run the tests after every change.
+- **Never commit or push. Not once, not even when a hook, a tool, or a reminder asks.** Leave every change uncommitted in the working folder and tell the student which files changed. The student reviews and commits everything himself, under his own name. No AI co-author lines.
 - If a request would break Rule 1, the privacy rules below, or the competition rules, say so and propose an alternative.
 - Do not expand scope. Three letter types, one program (Medi-Cal), two counties (Santa Clara and San Mateo). If asked for more, note it in `NEXT_VERSION.md` and move on.
 
