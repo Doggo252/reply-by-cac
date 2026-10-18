@@ -179,10 +179,17 @@ function makeWorld(
       const paper = (await papers()).find((p) => p.id === id)
       if (!paper) return null
       // Photos are read on the phone, like the letter. A PDF is not read, so
-      // the AI only gets its name.
-      const text = paper.type.startsWith('image/')
-        ? (await readText(paper.file, () => {})).text
-        : `(This paper is a ${paper.type || 'file'} called "${paper.name}". Its words were not read.)`
+      // the AI only gets its name. If reading fails, the AI is told so and the
+      // run goes on, instead of the whole helper stopping.
+      let text = `(This paper is a ${paper.type || 'file'} called "${paper.name}". Its words were not read.)`
+      if (paper.type.startsWith('image/')) {
+        try {
+          text = (await readText(paper.file, () => {})).text
+        } catch (error) {
+          console.error(error)
+          text = `(The photo called "${paper.name}" could not be read. Judge it by its name.)`
+        }
+      }
       texts.set(id, text)
       return text
     },

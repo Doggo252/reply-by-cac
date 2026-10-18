@@ -137,7 +137,8 @@ export async function runAgent(
         try {
           result = await runTool(ask.name, ask.input ?? {}, world, state)
         } catch (error) {
-          if (error instanceof HardStop) log(ask.name, inputs, 'stop', error.rule)
+          // Log which tool it was, whatever went wrong, before the run ends.
+          log(ask.name, inputs, 'stop', error instanceof HardStop ? error.rule : 'unexpected error')
           throw error
         }
         const safe = redactResult(result, names)
