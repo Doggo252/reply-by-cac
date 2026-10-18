@@ -650,3 +650,55 @@ details.dev summary {
 .card.warning h2 {
   margin-top: 0;
 }
+
+/* "How well ReplyBy works": number tiles and result tables. */
+.tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.tile {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0.9rem;
+}
+.tile-number {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+.tile-label {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.results {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.results th,
+.results td {
+  text-align: left;
+  padding: 0.45rem 0.3rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.results th {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.meter {
+  height: 6px;
+  margin-top: 0.3rem;
+  background: var(--brand-soft);
+  border-radius: 4px;
+}
+.meter-fill {
+  height: 100%;
+  background: var(--brand);
+  border-radius: 4px;
+}

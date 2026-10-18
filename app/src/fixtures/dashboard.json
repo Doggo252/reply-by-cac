@@ -1,0 +1,125 @@
+{
+ "letters_tested": 640,
+ "reader_a": {
+  "type_right": [
+   619,
+   640
+  ],
+  "by_type": [
+   [
+    "MC210_RV",
+    [
+     155,
+     156
+    ]
+   ],
+   [
+    "MC355",
+    [
+     161,
+     163
+    ]
+   ],
+   [
+    "MC_239A",
+    [
+     155,
+     159
+    ]
+   ],
+   [
+    "OTHER",
+    [
+     148,
+     162
+    ]
+   ]
+  ],
+  "dates": [
+   [
+    "notice_date",
+    [
+     325,
+     478
+    ],
+    17,
+    136,
+    0
+   ],
+   [
+    "due_date",
+    [
+     286,
+     319
+    ],
+    5,
+    28,
+    0
+   ],
+   [
+    "effective_date",
+    [
+     109,
+     159
+    ],
+    9,
+    41,
+    0
+   ]
+  ],
+  "case_numbers_seen": 0
+ },
+ "reader_b": {
+  "type_right": [
+   628,
+   640
+  ],
+  "by_type": [
+   [
+    "MC210_RV",
+    156,
+    156
+   ],
+   [
+    "MC355",
+    162,
+    163
+   ],
+   [
+    "MC_239A",
+    159,
+    159
+   ],
+   [
+    "OTHER",
+    151,
+    162
+   ]
+  ]
+ },
+ "together": {
+  "agree": [
+   614,
+   640
+  ],
+  "agree_and_right": [
+   611,
+   640
+  ],
+  "agree_but_wrong": 3,
+  "disagree": [
+   26,
+   640
+  ]
+ },
+ "matched_on_phone": {
+  "checker_dates": 3800,
+  "checker_forms": 600,
+  "county_mistake_cases": 400
+ },
+ "neils_tests": {
+  "deadline_rules": 20,
+  "checker": 8,
+  "county_mistakes": 10
+ }
+}

@@ -6,7 +6,7 @@ import { addPaper, listPapers, loadHelperLog, removePaper, saveHelperLog, type P
 import { fingerprint, shortPrint } from './fingerprint'
 import { savedOn } from './words'
 
-export default function Vault() {
+export default function Vault({ onShowResults }: { onShowResults: () => void }) {
   const [papers, setPapers] = useState<Paper[] | null>(null)
   const [saving, setSaving] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
@@ -97,6 +97,10 @@ export default function Vault() {
           </button>
         </div>
       )}
+
+      <button className="button" onClick={onShowResults}>
+        How well ReplyBy works
+      </button>
     </>
   )
 }

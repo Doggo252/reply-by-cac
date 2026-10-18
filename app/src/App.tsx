@@ -10,6 +10,7 @@ import Timeline from './Timeline'
 import Vault from './Vault'
 import ReplyPacket from './ReplyPacket'
 import AgentHelper from './AgentHelper'
+import Dashboard from './Dashboard'
 import { loadLetter, saveDrafts, saveLetter, type SavedLetter } from './storage'
 
 type Tab = 'letter' | 'happened' | 'papers'
@@ -19,6 +20,8 @@ export default function App() {
   const [letter, setLetter] = useState<SavedLetter | null>(loadLetter)
   // On the My letter tab: the letter itself, the manual reply steps, or the AI helper.
   const [reply, setReply] = useState<'none' | 'manual' | 'helper'>('none')
+  // On the My papers tab: the papers, or the test results.
+  const [results, setResults] = useState(false)
 
   function showReply(next: 'none' | 'manual' | 'helper') {
     setReply(next)
@@ -40,6 +43,7 @@ export default function App() {
 
   function open(next: Tab) {
     setTab(next)
+    setResults(false)
     window.scrollTo(0, 0)
   }
 
@@ -64,7 +68,12 @@ export default function App() {
             <Capture onDone={keepLetter} />
           ))}
         {tab === 'happened' && <Timeline letter={letter} />}
-        {tab === 'papers' && <Vault />}
+        {tab === 'papers' &&
+          (results ? (
+            <Dashboard onBack={() => { setResults(false); window.scrollTo(0, 0) }} />
+          ) : (
+            <Vault onShowResults={() => { setResults(true); window.scrollTo(0, 0) }} />
+          ))}
       </main>
 
       <nav className="tabbar" aria-label="Main">
