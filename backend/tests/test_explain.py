@@ -70,5 +70,5 @@ def test_only_english_and_spanish(monkeypatch):
 
 
 def test_prompt_has_its_three_blanks():
-    text = (main.PROMPTS / "explain.md").read_text()
+    text = (main.PROMPTS / "explain.md").read_text(encoding="utf-8")
     assert "{facts}" in text and "{language}" in text and "{date}" in text

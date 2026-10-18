@@ -5,7 +5,7 @@ import rulesFile from '../../core/rules/deadlines.json'
 import { letterId } from './agentWords'
 import { todayOnThisPhone, type RulesFile } from './deadlines'
 import { listEvents, loadDone, saveDone, type SavedLetter } from './storage'
-import { watch, type Warning } from './watcher'
+import { watch, type Warning } from './watchRules'
 import { inWords } from './words'
 
 export default function Watcher({ letter, helperOffered, onUseHelper, onMakeReply }: {
@@ -37,37 +37,31 @@ export default function Watcher({ letter, helperOffered, onUseHelper, onMakeRepl
             <h2>
               {w.deadline.daysLeft === 0 ? 'Today is the last day' : `Only ${w.deadline.daysLeft} day${w.deadline.daysLeft === 1 ? '' : 's'} left`}
             </h2>
-            <p>{w.deadline.label}</p>
-            <p>By {inWords(w.deadline.date!)}.</p>
-            <p className="small">Did you already do this?</p>
-            <button
-              className="button"
-              onClick={() => {
-                const next = [...done, w.deadline.id]
-                saveDone(id, next)
-                setDone(next)
-              }}
-            >
-              Yes, I did it
-            </button>
-            <button className="button" onClick={() => setLater([...later, w.deadline.id])}>
-              Not yet
-            </button>
+            <p>The last day is {inWords(w.deadline.date!)}. Did you already send it?</p>
+            <div className="button-row">
+              <button
+                className="button"
+                onClick={() => {
+                  const next = [...done, w.deadline.id]
+                  saveDone(id, next)
+                  setDone(next)
+                }}
+              >
+                Yes, I sent it
+              </button>
+              <button className="button" onClick={() => setLater([...later, w.deadline.id])}>
+                Not yet
+              </button>
+            </div>
           </div>
         ) : (
           <div key={`mistake-${w.finding.rule}`} className="card warning" role="alert">
             <h2>The county may have made a mistake</h2>
             <p>{w.finding.reason}</p>
             <p className="small">Law: {w.finding.citation}</p>
-            {helperOffered ? (
-              <button className="button primary" onClick={onUseHelper}>
-                Use AI to prepare my response
-              </button>
-            ) : (
-              <button className="button primary" onClick={onMakeReply}>
-                Prepare my response
-              </button>
-            )}
+            <button className="button" onClick={helperOffered ? onUseHelper : onMakeReply}>
+              Ask the county to fix it
+            </button>
           </div>
         ),
       )}

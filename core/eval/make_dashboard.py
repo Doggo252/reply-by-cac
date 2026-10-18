@@ -37,14 +37,14 @@ def table_rows(text, heading):
 
 
 def count_tests(path):
-    return len(re.findall(r"^def test_", (ROOT / path).read_text(), re.M))
+    return len(re.findall(r"^def test_", (ROOT / path).read_text(encoding="utf-8"), re.M))
 
 
 def main():
-    a = (ROOT / "core" / "eval" / "reader_a.md").read_text()
-    b = (ROOT / "core" / "eval" / "reader_b_ocr.md").read_text()
-    checker = json.loads((ROOT / "app" / "src" / "fixtures" / "checker_cases.json").read_text())
-    mistakes = json.loads((ROOT / "app" / "src" / "fixtures" / "contradiction_cases.json").read_text())
+    a = (ROOT / "core" / "eval" / "reader_a.md").read_text(encoding="utf-8")
+    b = (ROOT / "core" / "eval" / "reader_b_ocr.md").read_text(encoding="utf-8")
+    checker = json.loads((ROOT / "app" / "src" / "fixtures" / "checker_cases.json").read_text(encoding="utf-8"))
+    mistakes = json.loads((ROOT / "app" / "src" / "fixtures" / "contradiction_cases.json").read_text(encoding="utf-8"))
 
     b_overall = float(re.search(r"Overall accuracy: ([\d.]+)%", b).group(1))
     letters = sum(int(row[1]) for row in table_rows(b, "## By letter type"))

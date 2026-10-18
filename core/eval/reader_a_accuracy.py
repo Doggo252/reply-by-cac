@@ -54,7 +54,7 @@ def truth_for(label):
 
 
 def ask(text):
-    prompt = (ROOT / "prompts" / "extract.md").read_text().replace("{text}", redact(text)[0])
+    prompt = (ROOT / "prompts" / "extract.md").read_text(encoding="utf-8").replace("{text}", redact(text)[0])
     try:
         answer = llm.ask_for_json(prompt)
         return answer if isinstance(answer, dict) else {"error": "not an object"}
@@ -66,7 +66,7 @@ def main():
     labels = {r["filename"]: r for r in csv.DictReader(open(SYNTHETIC / "labels.csv"))}
     texts = {r["filename"]: r["text"] for r in csv.DictReader(open(SYNTHETIC / "ocr_texts.csv"))}
     prompt_id = hashlib.sha256((ROOT / "prompts" / "extract.md").read_bytes()).hexdigest()[:12]
-    saved = json.loads(CACHE.read_text()) if CACHE.exists() else {}
+    saved = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {}
     if saved and "answers_by_prompt" not in saved:
         saved = {}  # an older file layout
     saved.setdefault("answers_by_prompt", {})

@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import rulesFile from '../../core/rules/deadlines.json'
 import type { TimelineEvent } from './contradictions'
 import type { RulesFile } from './deadlines'
-import { watch } from './watcher'
+import { watch } from './watchRules'
 
 const rules = rulesFile as RulesFile
 const TODAY = '2026-10-18'
@@ -23,6 +23,13 @@ test('no warning when the deadline is further away, already passed, or done', ()
 test('the last day itself still warns', () => {
   const warnings = watch(rules, 'MC355', { due_date: TODAY }, [], TODAY, [])
   expect(warnings.map((w) => w.kind)).toEqual(['deadline'])
+})
+
+test('a stopped letter warns about sending papers, never about a hearing date', () => {
+  // The hearing deadline and the cure deadline are both 4 days away here.
+  const warnings = watch(rules, 'MC_239A', { notice_date: '2026-07-25', effective_date: '2026-08-31' }, [], TODAY, [])
+  const ids = warnings.flatMap((w) => (w.kind === 'deadline' ? [w.deadline.id] : []))
+  expect(ids).toEqual(['document_request_coverage_stopped'])
 })
 
 // Neil's rule 1: papers in before the stop date, stopped anyway.

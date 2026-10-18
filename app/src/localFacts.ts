@@ -86,6 +86,12 @@ const AS_LETTER: Record<string, string> = { '0': 'O', '1': 'I', '2': 'Z', '5': '
 // Puts a garbled case number back into the county's #L#L### pattern, or
 // returns null if it cannot be one.
 export function fixCaseNumber(raw: string): string | null {
+  // First as read. If that fails, try again with marks the text reader
+  // writes for a 1 ("0B5P(77" or "|R5Y073") turned back into a 1.
+  return fixPattern(raw) ?? fixPattern(raw.replace(/[|()[\]!]/g, '1'))
+}
+
+function fixPattern(raw: string): string | null {
   const chars = raw.toUpperCase().replace(/[^A-Z0-9§]/g, '').split('')
   if (chars.length !== 7) return null
   const fixed = chars.map((c, i) => {
@@ -132,10 +138,12 @@ export function findWorkerName(text: string): string | null {
   return nameAfter(text, /worker\s*name/)
 }
 
+// The worker's phone number. After an opening "(", the text reader sometimes
+// reads the closing ")" as a 1, l, I, | or ], so "(6691 886-8486" counts too.
 export function findWorkerPhone(text: string): string | null {
   const match =
-    /(?:telephone|phone)(?:\s*number)?\s*:?\s*_*\s*\(?(\d{3})\)?[\s.-]*(\d{3})[\s.-]*(\d{4})/i.exec(text)
-  return match ? `(${match[1]}) ${match[2]}-${match[3]}` : null
+    /(?:telephone|phone)(?:\s*number)?\s*:?\s*_*\s*(?:\((\d{3})[)\]1lI|]?|(\d{3}))[\s.-]*(\d{3})[\s.-]*(\d{4})/i.exec(text)
+  return match ? `(${match[1] ?? match[2]}) ${match[3]}-${match[4]}` : null
 }
 
 // What the county is asking for, in the letter's own words.

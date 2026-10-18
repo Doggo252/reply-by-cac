@@ -53,4 +53,4 @@ def test_model_trouble_gives_a_clean_error(monkeypatch):
 
 def test_prompt_has_a_place_for_the_letter():
     # prompts/extract.md must contain {text}, or the letter would never be sent.
-    assert "{text}" in (main.PROMPTS / "extract.md").read_text()
+    assert "{text}" in (main.PROMPTS / "extract.md").read_text(encoding="utf-8")

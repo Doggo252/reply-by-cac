@@ -53,7 +53,7 @@ def main():
         rng.shuffle(pieces)
         text = " ".join(pieces)
         cases.append({"text": text, "facts": facts, "answer": invented_dates(text, facts)})
-    OUT.write_text(json.dumps(cases, ensure_ascii=False) + "\n")
+    OUT.write_text(json.dumps(cases, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"Saved {len(cases)} cases to {OUT.relative_to(ROOT)}")
 
 

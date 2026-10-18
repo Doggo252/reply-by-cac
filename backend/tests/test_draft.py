@@ -72,5 +72,5 @@ def test_nothing_to_draft_without_a_finding(monkeypatch):
 
 
 def test_prompt_has_its_three_blanks():
-    text = (main.PROMPTS / "draft.md").read_text()
+    text = (main.PROMPTS / "draft.md").read_text(encoding="utf-8")
     assert "{facts}" in text and "{findings}" in text and "{timeline}" in text

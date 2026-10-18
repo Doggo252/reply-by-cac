@@ -16,7 +16,7 @@ For each letter type (unless mentioned otherwise):
    - b. **`request_photo`**: if a paper is missing, ask the user to upload or take a picture. If they don't have the paper, move on.
 4. **Only for MC 239 A:**
    - a. **`check_county_mistake`**: check if the county made a mistake. If a mistake was found, draft a restore letter using **`draft_restore_letter`**.
-   - b. **`draft_hearing_request`**: always draft a hearing request. If a county mistake was found in 4a, include that in the hearing request.
+   - b. **`draft_hearing_request`**: only if a county mistake was found in 4a. Include the mistake in the hearing request. If no mistake was found, do not draft one; sending the missing papers is what brings Medi-Cal back.
 5. **`propose_packet`**: draft a packet that the user can send to the county.
 6. **`run_checker`**: run the checker for any mistakes. Always open the review screen using **`open_review_screen`**. If there are mistakes, open the review screen with issues highlighted in yellow and short, easy to understand explanations for them. When the user taps Done, the result will tell you whether the check passed. If it didn't, run **`run_checker`** again. Do this until no issues are found or we try 3 times. If the check is still failing after 3 tries, stop and tell the person in simple words which box doesn't match their letter.
 7. **`ask_user_to_sign`**: when the check passes after the review, ask the user to sign. If the person declines to sign, stop.

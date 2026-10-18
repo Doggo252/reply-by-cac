@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { findAsk, findCaseNumber, findFacts, findWorkerName, firstDate, fixCaseNumber } from './localFacts'
+import { findAsk, findCaseNumber, findFacts, findWorkerName, findWorkerPhone, firstDate, fixCaseNumber } from './localFacts'
 
 // Lines taken from real text-reader output of the fake letters.
 test('reads both date styles', () => {
@@ -66,6 +66,20 @@ test('a notice date whose slashes were read as digits', () => {
 test('a SAWS case number with a 4 read as "a"', () => {
   const text = 'CALHEERS CASE NUMBER: 70026706\n\u2018SAWS CASE NUMBER 7XaM714\nWORKER NAME: Lorraine Nguyen'
   expect(findCaseNumber(text)).toEqual({ value: '7X4M714', repaired: true })
+})
+
+// From the built-in sample letter, read at the new photo size (Oct 18).
+test('a case number with a 1 read as "(" or "|"', () => {
+  expect(findCaseNumber('Casenumber: OBSP(77')).toEqual({ value: '0B5P177', repaired: true })
+  expect(findCaseNumber('Case Number: |R5Y073')).toEqual({ value: '1R5Y073', repaired: true })
+  // A clean number with a stray mark after it is still read as it was.
+  expect(findCaseNumber('Case Number: 0B5P177)')).toEqual({ value: '0B5P177', repaired: true })
+})
+
+test('a phone number whose ")" was read as a 1', () => {
+  expect(findWorkerPhone('Worker telephone number: (6691 886-8486')).toBe('(669) 886-8486')
+  expect(findWorkerPhone('Worker telephone number: (669) 886-8486')).toBe('(669) 886-8486')
+  expect(findWorkerPhone('Telephone: 669-886-8486')).toBe('(669) 886-8486')
 })
 
 test('the worker name stops at the next label', () => {

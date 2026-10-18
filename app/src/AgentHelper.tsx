@@ -81,14 +81,14 @@ export default function AgentHelper({ letter, onBack, onManual }: {
   if (stage === 'consent') {
     return (
       <>
-        <h1 className="page-title">Use AI to prepare my response</h1>
-        <p className="lead">The AI picks your papers and writes the drafts. You look everything over and sign. It never sends anything.</p>
+        <h1 className="page-title">Get my papers ready</h1>
+        <p className="lead">The AI finds your papers and fills in your reply. You look it over and sign. Nothing is sent to the county.</p>
         <div className="card">
           <h2>What is sent to the AI</h2>
           <p className="small">Your name, address, case number and other private details are removed first.</p>
           <ol className="checklist">
             <li>The words and facts from your letter</li>
-            <li>Your notes in My timeline</li>
+            <li>What you wrote on the "What happened" screen</li>
             <li>The words on the papers you saved</li>
           </ol>
           <p className="small">Your photos and your signature stay on this phone.</p>
@@ -99,7 +99,7 @@ export default function AgentHelper({ letter, onBack, onManual }: {
         <button className="button" onClick={onManual}>
           No, I will do it myself
         </button>
-        <button className="button" onClick={onBack}>
+        <button className="link" onClick={onBack}>
           Back to my letter
         </button>
       </>
@@ -117,9 +117,9 @@ export default function AgentHelper({ letter, onBack, onManual }: {
           Try again
         </button>
         <button className="button" onClick={onManual}>
-          Prepare it myself
+          Do it myself
         </button>
-        <button className="button" onClick={onBack}>
+        <button className="link" onClick={onBack}>
           Back to my letter
         </button>
       </>
@@ -134,7 +134,7 @@ export default function AgentHelper({ letter, onBack, onManual }: {
       {pause?.kind === 'photo' && <PhotoScreen paperName={pause.paperName} answer={pause.answer} />}
       {!pause && (
         <>
-          <h1 className="page-title">Preparing your response</h1>
+          <h1 className="page-title">Getting your papers ready</h1>
           <p className="lead" role="status">
             Working… This can take a minute.
           </p>
@@ -236,7 +236,7 @@ const confirmed = (letter: SavedLetter) =>
   Object.fromEntries(Object.entries(letter.facts).filter(([field]) => field !== 'ask'))
 
 // The live action log (TOOLS.md, Section 6): plain words, with the exact
-// record underneath for anyone who wants it.
+// records folded away underneath for anyone who wants them.
 function ActionLog({ log }: { log: LogLine[] }) {
   if (log.length === 0) return null
   return (
@@ -244,12 +244,17 @@ function ActionLog({ log }: { log: LogLine[] }) {
       <h2>What the AI helper did</h2>
       <ol className="action-log">
         {log.map((line, i) => (
-          <li key={i}>
-            {logWords(line)}
-            <span className="log-record">{logRecord(line)}</span>
-          </li>
+          <li key={i}>{logWords(line)}</li>
         ))}
       </ol>
+      <details className="more">
+        <summary>Details</summary>
+        {log.map((line, i) => (
+          <span key={i} className="log-record">
+            {logRecord(line)}
+          </span>
+        ))}
+      </details>
     </div>
   )
 }
@@ -265,7 +270,14 @@ function ReviewScreen({ view, letter, answer }: {
   const { packet, drafts, explanations } = view
   const [papers, setPapers] = useState<Paper[]>([])
   const [paperIds, setPaperIds] = useState<string[]>(packet.paperIds)
-  const [kept, setKept] = useState<string[]>(drafts.map((d) => d.id))
+  // A hearing is a backup, so it starts unticked unless the county made a
+  // mistake (then there is a restore letter too). The person can tick it.
+  const mistakeFound = drafts.some((d) => d.kind === 'restore_letter')
+  const [kept, setKept] = useState<string[]>(
+    drafts.filter((d) => d.kind !== 'hearing_request' || mistakeFound).map((d) => d.id),
+  )
+  // The form boxes stay folded away unless something does not match.
+  const [changing, setChanging] = useState((packet.check?.yellowBoxes ?? []).length > 0)
   const [reasons, setReasons] = useState<Record<string, string>>(Object.fromEntries(drafts.map((d) => [d.id, d.reason])))
   const [formFacts, setFormFacts] = useState(packet.formFacts)
   const [atLimit, setAtLimit] = useState(false)
@@ -292,60 +304,74 @@ function ReviewScreen({ view, letter, answer }: {
   return (
     <>
       <h1 className="page-title">Look it over</h1>
-      <p className="lead">This is what the AI put together. Change anything you want, then tap Done.</p>
+      <p className="lead">Here is your reply. Change anything you want, then tap Done.</p>
 
-      {drafts.map((draft) => (
-        <DraftChoice
-          key={draft.id}
-          draft={draft}
-          on={kept.includes(draft.id)}
-          reason={reasons[draft.id] ?? ''}
-          onToggle={() => setKept(kept.includes(draft.id) ? kept.filter((k) => k !== draft.id) : [...kept, draft.id])}
-          onReason={(text) => setReasons({ ...reasons, [draft.id]: text })}
-        />
-      ))}
-
-      {letter.letterType === 'MC355' && letter.facts.ask && (
+      {letter.facts.ask && letter.letterType !== 'MC210_RV' && (
         <div className="card">
-          <h2>The county asked for</h2>
+          <h2>The county needs</h2>
           <p>{letter.facts.ask}</p>
         </div>
       )}
 
-      <h2 className="section-title">Papers to send with it</h2>
+      <h2 className="section-title">Papers to send</h2>
       {papers.length === 0 && <p className="hint">No papers saved yet.</p>}
       {papers.map((p) => {
         const on = paperIds.includes(p.id)
         return (
           <button key={p.id} className={`choice ${on ? 'on' : ''}`} onClick={() => togglePaper(p.id)}>
             <strong>{on ? '✓ ' : ''}{p.name}</strong>
-            <span>Saved {savedOn(p.addedAt)}</span>
+            <span>{on ? 'Will be sent' : 'Tap to send this'}</span>
           </button>
         )
       })}
       {atLimit && <p className="hint">You can send up to {MAX_PAPERS} papers. Untick one to add another.</p>}
 
-      <h2 className="section-title">What is written on your papers</h2>
-      {yellow.length > 0 && (
-        <p className="error" role="alert">
-          Fix the yellow {yellow.length === 1 ? 'box' : 'boxes'} so they match your letter.
-        </p>
+      {/* The restore letter first, then the hearing (a backup). */}
+      {[...drafts]
+        .sort((a, b) => (a.kind === 'restore_letter' ? -1 : 1) - (b.kind === 'restore_letter' ? -1 : 1))
+        .map((draft) => (
+          <DraftChoice
+            key={draft.id}
+            draft={draft}
+            on={kept.includes(draft.id)}
+            reason={reasons[draft.id] ?? ''}
+            onToggle={() => setKept(kept.includes(draft.id) ? kept.filter((k) => k !== draft.id) : [...kept, draft.id])}
+            onReason={(text) => setReasons({ ...reasons, [draft.id]: text })}
+          />
+        ))}
+
+      {yellow.length === 0 && !changing ? (
+        <>
+          <p className="all-good">✓ Your reply matches your letter.</p>
+          <button className="link" onClick={() => setChanging(true)}>
+            Something wrong? Change it
+          </button>
+        </>
+      ) : (
+        <>
+          <h2 className="section-title">What goes on your forms</h2>
+          {yellow.length > 0 && (
+            <p className="error" role="alert">
+              Fix the yellow {yellow.length === 1 ? 'box' : 'boxes'} so they match your letter.
+            </p>
+          )}
+          {Object.keys(formFacts).map((field) => {
+            const box = yellow.find((b) => b.field === field)
+            return (
+              <label key={field} className={`fact ${box ? 'flagged' : ''}`}>
+                <span className="fact-label">{FACT_LABELS[field] ?? field}</span>
+                <input value={formFacts[field]} onChange={(e) => setFormFacts({ ...formFacts, [field]: e.target.value })} />
+                {box && (
+                  <span className="fact-flag">
+                    Your letter says: {box.expected}
+                    {explanations[box.yellow_box_id] ? `. ${explanations[box.yellow_box_id]}` : ''}
+                  </span>
+                )}
+              </label>
+            )
+          })}
+        </>
       )}
-      {Object.keys(formFacts).map((field) => {
-        const box = yellow.find((b) => b.field === field)
-        return (
-          <label key={field} className={`fact ${box ? 'flagged' : ''}`}>
-            <span className="fact-label">{FACT_LABELS[field] ?? field}</span>
-            <input value={formFacts[field]} onChange={(e) => setFormFacts({ ...formFacts, [field]: e.target.value })} />
-            {box && (
-              <span className="fact-flag">
-                Your letter says: {box.expected}
-                {explanations[box.yellow_box_id] ? `. ${explanations[box.yellow_box_id]}` : ''}
-              </span>
-            )}
-          </label>
-        )
-      })}
 
       <button
         className="button primary"
@@ -354,9 +380,9 @@ function ReviewScreen({ view, letter, answer }: {
       >
         Done
       </button>
-      {missingReason && <p className="hint">Write why you disagree, or untick the hearing request.</p>}
-      <button className="button" onClick={() => answer(null)}>
-        Cancel
+      {missingReason && <p className="hint">Write why, or untick the hearing.</p>}
+      <button className="link" onClick={() => answer(null)}>
+        Stop and go back
       </button>
     </>
   )
@@ -375,17 +401,17 @@ function DraftChoice({ draft, on, reason, onToggle, onReason }: {
       <button className={`choice ${on ? 'on' : ''}`} onClick={onToggle}>
         <strong>
           {on ? '✓ ' : ''}
-          {hearing ? 'Ask for a hearing' : 'Letter asking the county to restore my Medi-Cal'}
+          {hearing ? 'Also ask for a hearing' : 'Letter asking the county to fix its mistake'}
         </strong>
         <span>
           {hearing
-            ? "A judge reviews the county's decision. Asking before your Medi-Cal stops keeps it on while you wait."
-            : `The county made a mistake. The law: ${draft.citation ?? ''}`}
+            ? 'Only if you think the county made a mistake. A judge looks at it.'
+            : `The county may have made a mistake. The law: ${draft.citation ?? ''}`}
         </span>
       </button>
       {on && (
         <label className="field">
-          <span>{hearing ? 'Why do you disagree?' : 'What happened, in your words'}</span>
+          <span>{hearing ? 'Why do you think the county is wrong?' : 'What happened, in your words'}</span>
           <textarea value={reason} onChange={(e) => onReason(e.target.value)} />
           {!reason.trim() && <span className="hint">The AI left this blank. Please write it yourself.</span>}
         </label>

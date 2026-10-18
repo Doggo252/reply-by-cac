@@ -1,9 +1,15 @@
-// "Manually prepare my response": the steps from a checked letter to a signed packet.
-//   1. About you      name and address for the forms (kept on this phone)
-//   2. What goes in   the forms for this letter, and papers from the vault
-//   3. Check          Neil's checker compares the papers to the letter
-//   4. Sign           only once the check passes
-//   5. Done           the packet is saved to My papers, ready to print or share
+// "Do it myself": from a checked letter to a signed reply, one thing per screen.
+//   First time only   About you: name and address for the forms (kept on this phone)
+//   Step 1 of 4       Your papers: what the county asked for, and the papers to send
+//   Step 2 of 4       Check: Neil's checker compares the forms to the letter
+//   Step 3 of 4       Sign: only once the check passes
+//   Step 4 of 4       Done: saved to My papers, ready to print or share
+//
+// A hearing request goes in only when the person asks for one. It is a backup
+// for when they think the county made a mistake; sending the papers is what
+// brings Medi-Cal back. The letter asking the county to undo the stop goes in
+// when Neil's county-mistake rules found a mistake and it was written on the
+// "What happened" screen.
 //
 // Each step is one plain function underneath (fill, check, sign, build), so
 // the AI helper (AgentHelper.tsx) runs the same steps, under Neil's rules in
@@ -18,7 +24,7 @@ import { shortPrint } from './fingerprint'
 import { FACT_LABELS, inWords, savedOn } from './words'
 import SignaturePad from './SignaturePad'
 
-type Step = 'about' | 'contents' | 'check' | 'sign' | 'done'
+type Step = 'about' | 'papers' | 'check' | 'sign' | 'done'
 
 // The sections of the MC 210 RV to fill in by hand, with their page numbers
 // on the October 2020 form. The property part matters again since 2026
@@ -35,20 +41,25 @@ const RENEWAL_CHECKLIST = [
   'Page 17: sign and date. This app makes a signed copy of this page for you.',
 ]
 
-export default function ReplyPacket({ letter, onBack }: { letter: SavedLetter; onBack: () => void }) {
-  const [step, setStep] = useState<Step>(loadAbout() ? 'contents' : 'about')
+export default function ReplyPacket({ letter, withHearing, onBack }: {
+  letter: SavedLetter
+  withHearing: boolean // the person tapped "Ask for a hearing"
+  onBack: () => void
+}) {
+  const [step, setStep] = useState<Step>(loadAbout() ? 'papers' : 'about')
   const [about, setAbout] = useState<AboutYou | null>(loadAbout)
   const drafts = loadDrafts()
   const isStop = letter.letterType === 'MC_239A'
-  const [hearing, setHearing] = useState(isStop)
+  const [hearing, setHearing] = useState(isStop && withHearing)
   const [reason, setReason] = useState(drafts?.hearing_reason ?? '')
   const [undoLetter, setUndoLetter] = useState(isStop && !!drafts)
   const [papers, setPapers] = useState<Paper[]>([])
   const [chosen, setChosen] = useState<string[]>([])
-  // The facts as written on the papers. The person can change them here,
-  // which is exactly what the checker is for.
+  // The facts as written on the forms. The person can change them on the
+  // check screen, which is exactly what the checker is for.
   const [paperFacts, setPaperFacts] = useState<PaperFacts>(() => paperFactsFrom(letter.facts))
   const [mismatches, setMismatches] = useState<Mismatch[] | null>(null)
+  const [changing, setChanging] = useState(false)
   const [signature, setSignature] = useState<Uint8Array | null>(null)
   const [made, setMade] = useState<Paper | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
@@ -64,10 +75,12 @@ export default function ReplyPacket({ letter, onBack }: { letter: SavedLetter; o
     window.scrollTo(0, 0)
   }
 
-  // Neil's checker: the papers against the facts the person confirmed.
-  function runCheck() {
+  // Neil's checker: the forms against the facts the person confirmed.
+  function runCheck(facts = paperFacts) {
     const confirmed = Object.fromEntries(Object.entries(letter.facts).filter(([field]) => field !== 'ask'))
-    setMismatches(check(paperFacts, confirmed))
+    const found = check(facts, confirmed)
+    setMismatches(found)
+    setChanging(found.length > 0)
     window.scrollTo(0, 0)
   }
 
@@ -102,7 +115,7 @@ export default function ReplyPacket({ letter, onBack }: { letter: SavedLetter; o
       go('done')
     } catch (error) {
       console.error(error)
-      setProblem(error instanceof Error ? error.message : 'We could not make the packet. Please try again.')
+      setProblem(error instanceof Error ? error.message : 'We could not make your reply. Please try again.')
     }
     setWorking(false)
   }
@@ -116,78 +129,53 @@ export default function ReplyPacket({ letter, onBack }: { letter: SavedLetter; o
         onSave={(next) => {
           saveAbout(next)
           setAbout(next)
-          go('contents')
+          go('papers')
         }}
       />
     )
   }
 
-  if (step === 'contents') {
+  if (step === 'papers') {
+    const toSend = papers.filter((p) => !p.name.startsWith('Reply packet'))
     return (
       <>
-        <h1 className="page-title">What goes in your reply</h1>
-        <span className="step">Part 1 of 3</span>
+        <span className="step">Step 1 of 4</span>
+        <h1 className="page-title">Your papers</h1>
 
-        {isStop && (
-          <>
-            <button className={`choice ${hearing ? 'on' : ''}`} onClick={() => setHearing(!hearing)}>
-              <strong>{hearing ? '✓ ' : ''}Ask for a hearing</strong>
-              <span>A judge reviews the county's decision. Asking before your Medi-Cal stops keeps it on while you wait.</span>
-            </button>
-            {hearing && (
-              <label className="field">
-                <span>Why do you disagree?</span>
-                <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Like: I sent my papers on time." />
-              </label>
-            )}
-            {drafts ? (
-              <button className={`choice ${undoLetter ? 'on' : ''}`} onClick={() => setUndoLetter(!undoLetter)}>
-                <strong>{undoLetter ? '✓ ' : ''}Letter asking the county to restore my Medi-Cal</strong>
-                <span>The letter written from your timeline.</span>
-              </button>
-            ) : (
-              <p className="hint">If the county made a mistake, My timeline can write a letter asking them to fix it.</p>
-            )}
-          </>
-        )}
-
-        {letter.letterType === 'MC355' && (
+        {letter.letterType === 'MC210_RV' ? (
           <div className="card">
-            <h2>The county asked for</h2>
-            <p>{letter.facts.ask ?? 'Look at your letter to see what they asked for.'}</p>
-            <p className="small">Pick those papers below. Take a photo of any you have not saved yet.</p>
-          </div>
-        )}
-
-        {letter.letterType === 'MC210_RV' && (
-          <div className="card">
-            <h2>Fill in your renewal form by hand</h2>
-            <p className="small">Do not retype it. Answer these parts on the paper form:</p>
+            <h2>First, fill in your renewal form by hand</h2>
+            <p className="small">Use the paper form that came with your letter. Answer these parts:</p>
             <ol className="checklist">
               {RENEWAL_CHECKLIST.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ol>
+            <p className="small">Then add photos of your proof below, like a bank statement.</p>
+          </div>
+        ) : (
+          <div className="card">
+            <h2>The county needs</h2>
+            <p>{letter.facts.ask ?? 'The papers listed on your letter.'}</p>
+            <p className="small">Add a photo of each one below.</p>
           </div>
         )}
 
-        <h2 className="section-title">Papers to send with it</h2>
-        {papers.length === 0 && <p className="hint">No papers saved yet. Add photos in My papers.</p>}
-        {papers
-          .filter((p) => !p.name.startsWith('Reply packet'))
-          .map((p) => {
-            const on = chosen.includes(p.id)
-            return (
-              <button
-                key={p.id}
-                className={`choice ${on ? 'on' : ''}`}
-                onClick={() => setChosen(on ? chosen.filter((id) => id !== p.id) : [...chosen, p.id])}
-              >
-                <strong>{on ? '✓ ' : ''}{p.name}</strong>
-                <span>Saved {savedOn(p.addedAt)}</span>
-              </button>
-            )
-          })}
+        <h2 className="section-title">Papers to send</h2>
+        {toSend.length === 0 && <p className="hint">No papers saved yet. Take a photo of each one.</p>}
+        {toSend.map((p) => {
+          const on = chosen.includes(p.id)
+          return (
+            <button
+              key={p.id}
+              className={`choice ${on ? 'on' : ''}`}
+              onClick={() => setChosen(on ? chosen.filter((id) => id !== p.id) : [...chosen, p.id])}
+            >
+              <strong>{on ? '✓ ' : ''}{p.name}</strong>
+              <span>{on ? 'Will be sent' : 'Tap to send this'}</span>
+            </button>
+          )
+        })}
         <label className="button">
           Take a photo of a paper
           <input
@@ -206,14 +194,44 @@ export default function ReplyPacket({ letter, onBack }: { letter: SavedLetter; o
           />
         </label>
 
-        <button className="button primary" onClick={() => go('check')} disabled={isStop && hearing && !reason.trim()}>
-          Next: check it
+        {isStop && drafts && (
+          <button className={`choice ${undoLetter ? 'on' : ''}`} onClick={() => setUndoLetter(!undoLetter)}>
+            <strong>{undoLetter ? '✓ ' : ''}Letter asking the county to fix its mistake</strong>
+            <span>Written from what you wrote down on the "What happened" screen.</span>
+          </button>
+        )}
+
+        {isStop && (
+          <>
+            <button className={`choice ${hearing ? 'on' : ''}`} onClick={() => setHearing(!hearing)}>
+              <strong>{hearing ? '✓ ' : ''}Also ask for a hearing</strong>
+              <span>Only if you think the county made a mistake. A judge looks at it.</span>
+            </button>
+            {hearing && (
+              <label className="field">
+                <span>Why do you think the county is wrong?</span>
+                <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Like: I sent my papers on time." />
+              </label>
+            )}
+          </>
+        )}
+
+        <button
+          className="button primary"
+          onClick={() => {
+            runCheck()
+            go('check')
+          }}
+          disabled={hearing && !reason.trim()}
+        >
+          Next
         </button>
-        <button className="button" onClick={() => go('about')}>
-          Change my name or address
-        </button>
-        <button className="button" onClick={onBack}>
+        {hearing && !reason.trim() && <p className="hint">Write why, or untick the hearing.</p>}
+        <button className="link" onClick={onBack}>
           Back to my letter
+        </button>
+        <button className="link" onClick={() => go('about')}>
+          Change my name or address
         </button>
       </>
     )
@@ -223,48 +241,61 @@ export default function ReplyPacket({ letter, onBack }: { letter: SavedLetter; o
     const passed = mismatches !== null && mismatches.length === 0
     return (
       <>
+        <span className="step">Step 2 of 4</span>
         <h1 className="page-title">Check your reply</h1>
-        <span className="step">Part 2 of 3</span>
-        <p className="lead">This is what will be written on your papers. We check it against your letter.</p>
-        {mismatches && mismatches.length > 0 && (
-          <p className="error" role="alert">
-            {mismatches.length === 1 ? 'One thing does not match your letter.' : `${mismatches.length} things do not match your letter.`}{' '}
-            Fix the yellow {mismatches.length === 1 ? 'box' : 'boxes'}, then check again.
-          </p>
-        )}
-        {Object.keys(paperFacts).map((field) => {
-          const wrong = mismatches?.find((m) => m.field === field)
-          return (
-            <label key={field} className={`fact ${wrong ? 'flagged' : ''}`}>
-              <span className="fact-label">{FACT_LABELS[field] ?? field}</span>
-              <input
-                value={paperFacts[field]}
-                onChange={(e) => {
-                  setPaperFacts({ ...paperFacts, [field]: e.target.value })
-                  setMismatches(null)
-                }}
-              />
-              {wrong && <span className="fact-flag">Your letter says: {letterValue(field, wrong.fact)}</span>}
-            </label>
-          )
-        })}
 
-        {passed && (
-          <p className="all-good" role="status">
-            ✓ Everything matches your letter.
-          </p>
+        {passed && !changing && (
+          <>
+            <p className="all-good" role="status">
+              ✓ Everything on your reply matches your letter.
+            </p>
+            <div className="card">
+              {Object.entries(paperFacts)
+                .filter(([, value]) => value)
+                .map(([field, value]) => (
+                  <p key={field}>
+                    <span className="small">{FACT_LABELS[field] ?? field}</span>
+                    <br />
+                    <strong>{letterValue(field, value)}</strong>
+                  </p>
+                ))}
+            </div>
+            <button className="button primary" onClick={() => go('sign')}>
+              Next
+            </button>
+            <button className="link" onClick={() => setChanging(true)}>
+              Something wrong? Change it
+            </button>
+          </>
         )}
 
-        {passed ? (
-          <button className="button primary" onClick={() => go('sign')}>
-            Next: sign it
-          </button>
-        ) : (
-          <button className="button primary" onClick={runCheck}>
-            Check my reply
-          </button>
+        {changing && (
+          <>
+            {mismatches && mismatches.length > 0 ? (
+              <p className="error" role="alert">
+                {mismatches.length === 1 ? 'One box does not match your letter.' : `${mismatches.length} boxes do not match your letter.`}{' '}
+                Fix the yellow {mismatches.length === 1 ? 'box' : 'boxes'}.
+              </p>
+            ) : (
+              <p className="lead">Change what is wrong, then tap Check again.</p>
+            )}
+            {Object.keys(paperFacts).map((field) => {
+              const wrong = mismatches?.find((m) => m.field === field)
+              return (
+                <label key={field} className={`fact ${wrong ? 'flagged' : ''}`}>
+                  <span className="fact-label">{FACT_LABELS[field] ?? field}</span>
+                  <input value={paperFacts[field]} onChange={(e) => setPaperFacts({ ...paperFacts, [field]: e.target.value })} />
+                  {wrong && <span className="fact-flag">Your letter says: {letterValue(field, wrong.fact)}</span>}
+                </label>
+              )
+            })}
+            <button className="button primary" onClick={() => runCheck()}>
+              Check again
+            </button>
+          </>
         )}
-        <button className="button" onClick={() => go('contents')}>
+
+        <button className="link" onClick={() => go('papers')}>
           Back
         </button>
       </>
@@ -274,19 +305,15 @@ export default function ReplyPacket({ letter, onBack }: { letter: SavedLetter; o
   if (step === 'sign') {
     return (
       <>
+        <span className="step">Step 3 of 4</span>
         <h1 className="page-title">Sign your reply</h1>
-        <span className="step">Part 3 of 3</span>
-        <p className="lead">
-          By signing, you say the information is true. Your signature goes on{' '}
-          {isStop && hearing ? 'the hearing request' : letter.letterType === 'MC210_RV' ? 'page 17 of the renewal form' : 'the cover sheet'}
-          {isStop && undoLetter && drafts ? ' and the letter' : ''}.
-        </p>
+        <p className="lead">Sign with your finger. By signing, you say the information is true.</p>
         <SignaturePad onChange={setSignature} />
         {problem && <p className="error">{problem}</p>}
         <button className="button primary" onClick={makePacket} disabled={!signature || working}>
-          {working ? 'Making your packet…' : 'Make my reply packet'}
+          {working ? 'Making your reply…' : 'Make my reply'}
         </button>
-        <button className="button" onClick={() => go('check')}>
+        <button className="link" onClick={() => go('check')}>
           Back
         </button>
       </>
@@ -375,7 +402,7 @@ export function AboutForm({ about, letterText, onSave, onBack }: {
     >
       <h1 className="page-title">About you</h1>
       <p className="lead">For the forms. This stays on your phone and is never sent to the AI.</p>
-      {Object.keys(guessed).length > 0 && (
+      {(guessed.name || guessed.street) && (
         <p className="hint">
           We filled this in from your letter. Please check your address. If you moved, type your new one.
         </p>

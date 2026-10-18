@@ -34,7 +34,7 @@ const KIND_WORDS: { kind: EventKind; label: string; who: 'You' | 'County' }[] = 
 ]
 const wordsFor = (kind: EventKind) => KIND_WORDS.find((k) => k.kind === kind)!
 
-export default function Timeline({ letter }: { letter: SavedLetter | null }) {
+export default function Timeline({ letter, onBack }: { letter: SavedLetter | null; onBack: () => void }) {
   const [events, setEvents] = useState<SavedEvent[] | null>(null)
   const [papers, setPapers] = useState<Paper[]>([])
   const [adding, setAdding] = useState(false)
@@ -118,6 +118,9 @@ export default function Timeline({ letter }: { letter: SavedLetter | null }) {
     <>
       <h1 className="page-title">What happened</h1>
       <p className="lead">Write down what you sent and what the county did. We check it for mistakes by the county.</p>
+      <button className="link" onClick={onBack}>
+        Back to my letter
+      </button>
       {storageFailed && <p className="error">This phone is not letting the app save. Private browsing can cause this.</p>}
 
       {findings.map((finding) => (
@@ -163,6 +166,9 @@ export default function Timeline({ letter }: { letter: SavedLetter | null }) {
       {events && events.length > 0 && !stopsCoverage && (
         <p className="hint">The mistake check works with a notice that your Medi-Cal is being stopped.</p>
       )}
+      <button className="button" onClick={onBack}>
+        Back to my letter
+      </button>
     </>
   )
 }
@@ -226,7 +232,7 @@ function WriteLetters({ letter, findings, events }: { letter: SavedLetter; findi
       <DraftCard title="Letter asking the county to undo the stop" text={drafts.rescission_letter} />
       <DraftCard title="Why I disagree (for the hearing form)" text={drafts.hearing_reason} />
       <p className="hint">
-        These go into your reply packet (My letter, then "Get my reply ready"). Read both before you send anything.
+        These go into your reply when you tap the big button on your letter screen. Read both before you send anything.
       </p>
     </>
   )

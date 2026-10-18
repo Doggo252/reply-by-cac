@@ -85,7 +85,7 @@ def extract(letter: LetterText):
     # The phone already scrubbed the text. Scrub it again here, in case of a
     # bug in the app.
     clean, blanked = redact(letter.text)
-    prompt = (PROMPTS / "extract.md").read_text().replace("{text}", clean)
+    prompt = (PROMPTS / "extract.md").read_text(encoding="utf-8").replace("{text}", clean)
     try:
         answer = llm.ask_for_json(prompt)
     except llm.LLMError as error:
@@ -122,7 +122,7 @@ def explain(request: ExplainRequest):
         raise HTTPException(status_code=400, detail=f"language must be one of {LANGUAGES}")
     # The case number is never needed to explain a letter, so it is not sent.
     facts = {**request.facts, "case_number": None}
-    prompt = ((PROMPTS / "explain.md").read_text()
+    prompt = ((PROMPTS / "explain.md").read_text(encoding="utf-8")
               .replace("{facts}", json.dumps(facts, indent=2))
               .replace("{language}", request.language)
               .replace("{date}", today().isoformat()))
@@ -184,7 +184,7 @@ def draft(request: DraftRequest):
     timeline = [{"date": e.get("date"), "type": e.get("type"),
                  "description": redact(str(e.get("description") or ""))[0]}
                 for e in request.timeline]
-    prompt = ((PROMPTS / "draft.md").read_text()
+    prompt = ((PROMPTS / "draft.md").read_text(encoding="utf-8")
               .replace("{facts}", json.dumps(facts, indent=2))
               .replace("{findings}", json.dumps(request.findings, indent=2))
               .replace("{timeline}", json.dumps(timeline, indent=2)))
@@ -230,7 +230,7 @@ def agent_step(request: AgentRequest):
     calls_so_far = sum(1 for m in request.messages if isinstance(m["content"], list)
                        for b in m["content"] if b.get("type") == "tool_use")
     try:
-        parts = llm.ask_with_tools(instructions_file.read_text(), agent.to_gemini(request.messages),
+        parts = llm.ask_with_tools(instructions_file.read_text(encoding="utf-8"), agent.to_gemini(request.messages),
                                    agent.declarations(request.tools))
     except llm.LLMError as error:
         raise HTTPException(status_code=503, detail=str(error))

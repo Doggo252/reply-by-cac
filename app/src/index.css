@@ -643,6 +643,67 @@ details.dev summary {
   overflow-wrap: anywhere;
 }
 
+/* The letter screen: the one thing to do, in a box that stands out. */
+.job {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--brand-soft);
+  border: 2px solid var(--brand);
+  border-radius: 0.8rem;
+}
+.job-task {
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--brand);
+}
+.job-why {
+  margin-top: 0.4rem !important;
+}
+.job-days {
+  display: inline-block;
+  margin-top: 0.6rem !important;
+  padding: 0.15rem 0.7rem;
+  font-weight: 800;
+  color: #fff;
+  background: var(--brand);
+  border-radius: 999px;
+}
+.button.big {
+  min-height: 3.4rem;
+  font-size: 1.15rem;
+}
+
+/* "More" sections the person opens only if they want them. */
+details.more {
+  margin-top: 1rem;
+  padding: 0.2rem 1rem 0.8rem;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 0.8rem;
+}
+details.more > summary {
+  min-height: 2.6rem;
+  padding: 0.6rem 0 0.2rem;
+  font-weight: 700;
+  color: var(--brand);
+  cursor: pointer;
+}
+details.more > p {
+  margin-top: 0.5rem;
+}
+details.more .card {
+  margin-top: 0.6rem;
+  border: none;
+  padding: 0;
+}
+.quiet-link {
+  display: block;
+  margin: 1.4rem auto 0;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
 /* The watcher's warnings: deadlines 7 days away or less, county mistakes. */
 .card.warning {
   border: 3px solid var(--amber);

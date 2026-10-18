@@ -1,7 +1,7 @@
-// The app frame: three big tabs at the bottom.
-//   My letter      read a letter, then see what it means and the deadlines
-//   My timeline    what happened, checked for county mistakes
-//   My papers      the receipt vault
+// The app frame: two big tabs at the bottom (Neil's choice, Oct 18).
+//   My letter    read a letter, see the one thing to do, and do it
+//   My papers    the receipt vault
+// "What happened" (the timeline) opens from the letter screen.
 // The checked letter is saved on the phone, so closing the app loses nothing.
 import { useState } from 'react'
 import Capture from './Capture'
@@ -13,18 +13,21 @@ import AgentHelper from './AgentHelper'
 import Dashboard from './Dashboard'
 import { loadLetter, saveDrafts, saveLetter, type SavedLetter } from './storage'
 
-type Tab = 'letter' | 'happened' | 'papers'
+type Tab = 'letter' | 'papers'
+// What the My letter tab is showing.
+type View = 'home' | 'manual' | 'helper' | 'happened'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('letter')
   const [letter, setLetter] = useState<SavedLetter | null>(loadLetter)
-  // On the My letter tab: the letter itself, the manual reply steps, or the AI helper.
-  const [reply, setReply] = useState<'none' | 'manual' | 'helper'>('none')
+  const [view, setView] = useState<View>('home')
+  // The manual steps start with the hearing ticked only when the person asked for one.
+  const [withHearing, setWithHearing] = useState(false)
   // On the My papers tab: the papers, or the test results.
   const [results, setResults] = useState(false)
 
-  function showReply(next: 'none' | 'manual' | 'helper') {
-    setReply(next)
+  function show(next: View) {
+    setView(next)
     window.scrollTo(0, 0)
   }
 
@@ -37,37 +40,43 @@ export default function App() {
   function newLetter() {
     if (!window.confirm('Read a different letter? The deadlines for this one will be cleared.')) return
     saveDrafts(null)
-    setReply('none')
+    setView('home')
     keepLetter(null)
   }
 
   function open(next: Tab) {
     setTab(next)
     setResults(false)
+    if (next === 'letter') setView('home')
     window.scrollTo(0, 0)
+  }
+
+  function letterTab() {
+    if (!letter) return <Capture onDone={keepLetter} />
+    if (view === 'manual') return <ReplyPacket letter={letter} withHearing={withHearing} onBack={() => show('home')} />
+    if (view === 'helper') {
+      return <AgentHelper letter={letter} onBack={() => show('home')} onManual={() => { setWithHearing(false); show('manual') }} />
+    }
+    if (view === 'happened') return <Timeline letter={letter} onBack={() => show('home')} />
+    return (
+      <LetterHome
+        letter={letter}
+        onNewLetter={newLetter}
+        onAddEvent={() => show('happened')}
+        onMakeReply={(hearing) => {
+          setWithHearing(hearing)
+          show('manual')
+        }}
+        onUseHelper={() => show('helper')}
+      />
+    )
   }
 
   return (
     <>
       <main className="screen">
         <p className="app-name">ReplyBy</p>
-        {tab === 'letter' &&
-          (letter && reply === 'manual' ? (
-            <ReplyPacket letter={letter} onBack={() => showReply('none')} />
-          ) : letter && reply === 'helper' ? (
-            <AgentHelper letter={letter} onBack={() => showReply('none')} onManual={() => showReply('manual')} />
-          ) : letter ? (
-            <LetterHome
-              letter={letter}
-              onNewLetter={newLetter}
-              onAddEvent={() => open('happened')}
-              onMakeReply={() => showReply('manual')}
-              onUseHelper={() => showReply('helper')}
-            />
-          ) : (
-            <Capture onDone={keepLetter} />
-          ))}
-        {tab === 'happened' && <Timeline letter={letter} />}
+        {tab === 'letter' && letterTab()}
         {tab === 'papers' &&
           (results ? (
             <Dashboard onBack={() => { setResults(false); window.scrollTo(0, 0) }} />
@@ -81,10 +90,6 @@ export default function App() {
           <TabButton label="My letter" on={tab === 'letter'} onClick={() => open('letter')}>
             <path d="M3 6h18v12H3z" strokeLinejoin="round" />
             <path d="M3 6l9 7 9-7" strokeLinejoin="round" />
-          </TabButton>
-          <TabButton label="My timeline" on={tab === 'happened'} onClick={() => open('happened')}>
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5l3 2" strokeLinecap="round" />
           </TabButton>
           <TabButton label="My papers" on={tab === 'papers'} onClick={() => open('papers')}>
             <path d="M3 7h7l2 2h9v10H3z" strokeLinejoin="round" />
