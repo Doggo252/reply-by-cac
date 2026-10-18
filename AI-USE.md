@@ -93,3 +93,18 @@ What the student did: chose the agent design (in progress).
 Files created or edited: `app/src/localFacts.ts`, `app/src/localFacts.test.ts`, `app/src/contradictions.ts`, `app/src/fixtures/contradiction_cases.json`, `CLAUDE.md`, `TODO.md`.
 What I did: explained the project and planned the week; fixed the phone-only reader after the student's phone test (it now finds what the county is asking for, repairs a misread case number and stops worker names at the next label), checked on the 640 test letters; matched the phone county-mistake rules to the student's fixed citation; noted Reader A's missed dates as a known weak spot.
 What the student did: ran the phone-only test and reported the three problems; fixed the cure-period citation in `core/contradictions.py`; wrote `agent/TOOLS.md` (purpose, 13 tools, the locked `build_packet`, what the agent may never do, limits, action log).
+
+## 2026-10-16
+Files created or edited: `app/src/agentLoop.ts`, `app/src/agentTools.ts`, `app/src/grounding.ts`, `app/src/redact.ts`, `core/eval/make_grounding_cases.py`, tests, `CLAUDE.md`, `TODO.md` (a second Claude session, merged 10/17).
+What I did: built the AI helper's loop and its 13 tools from the student's `agent/TOOLS.md`, the date check on the phone, and blanking of the person's known names; updated `CLAUDE.md` for no fax.
+What the student did: finished `agent/TOOLS.md`; chose to run the loop on the phone.
+
+## 2026-10-17
+Files created or edited: `backend/agent.py`, `backend/main.py`, `backend/llm.py`, `app/src/agentApi.ts`, `app/src/AgentHelper.tsx`, `app/src/agentWords.ts`, `app/src/App.tsx`, `app/src/LetterHome.tsx`, `app/src/Vault.tsx`, `app/src/storage.ts`, `CLAUDE.md`, and tests.
+What I did: reviewed the other session's work and planned the weekend; built the `/agent` endpoint (relays to Gemini, scrubs again, only the 13 tools), the helper screens (consent, live log, review, sign, photo), and the saved log in My papers; explained the letter sequence and each tool for the prompt.
+What the student did: chose Render for hosting; wrote `prompts/agent.md` over three drafts after reviews (I formatted his final text as Markdown without changing his words).
+
+## 2026-10-18
+Files created or edited: `app/src/watcher.ts`, `app/src/Watcher.tsx`, `app/src/aboutFromLetter.ts`, `app/src/Dashboard.tsx`, `core/eval/make_dashboard.py`, `backend/serve.py`, `Dockerfile`, `render.yaml`, `Makefile`, `app/src/AgentHelper.tsx`, `app/src/agentLoop.ts`, and tests.
+What I did: ran the AI helper once for real and fixed a stop on an unreadable photo; built the offline watcher, the "About you" first guess from the letter, the evaluation dashboard, and the hosting setup with a daily AI-call cap; gave an outline for the guard tests.
+What the student did: fixed and pushed `prompts/agent.md`; is writing the `build_packet` guard tests in `app/src/agentGuard.test.ts`.
