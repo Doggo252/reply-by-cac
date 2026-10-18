@@ -146,24 +146,82 @@ export function findWorkerPhone(text: string): string | null {
   return match ? `(${match[1] ?? match[2]}) ${match[3]}-${match[4]}` : null
 }
 
+const PHONE = /\(?(\d{3})\)?[\s.-]*(\d{3})[\s.-]*(\d{4})/
+const phoneAfter = (text: string, label: RegExp) => {
+  const match = new RegExp(label.source + /\s*:?\s*_*\s*/.source + PHONE.source, 'i').exec(text)
+  return match ? `(${match[1]}) ${match[2]}-${match[3]}` : null
+}
+
+// The county's phone line on a renewal, where people can renew by phone
+// ("By phone at (669) 610-5875").
+export function findCountyPhone(text: string): string | null {
+  return phoneAfter(text, /(?:by\s+phone\s+at|help\s+in\s+your\s+language,?\s+call|call\s+your\s+local\s+county\s+office\s+at)/)
+}
+
+// The worker's fax number on a request for papers.
+export function findWorkerFax(text: string): string | null {
+  return phoneAfter(text, /fax(?:\s*number)?/)
+}
+
 // What the county is asking for, in the letter's own words.
 // - MC 239 A: the reason sentence, which always starts "You did not".
 // - MC 355: the items are check boxes on the later pages, so the phone
 //   points the person there.
 export function findAsk(text: string, letterType: string): string | null {
   if (letterType === 'MC_239A') {
-    const match = /you\s+did\s+not\s[\s\S]{5,500}?\.(?=\s|$)/i.exec(text)
-    if (!match) return null
-    let ask = match[0]
-    // Two columns can push the person's name into the middle of the sentence.
-    const caseName = nameAfter(text, /case\s*name/)
-    if (caseName) ask = ask.split(caseName).join(' ')
+    const start = /you\s+did\s+not\s/i.exec(text)
+    if (!start) return null
+    // The reason ends at its first full stop, or at the start of the letter's
+    // standard wording if the full stop was misread.
+    let rest = text.slice(start.index, start.index + 500)
+    const standard = STANDARD_WORDING.exec(rest.slice(10))
+    if (standard) rest = rest.slice(0, 10 + standard.index)
+    const stop = /\.(?=\s|$)/.exec(rest)
+    let ask = stop ? rest.slice(0, stop.index + 1) : rest
+    // Two columns can push the person's name into the middle of the sentence,
+    // sometimes misread ("Lotraine Morelos" for "Lorraine Morales").
+    const name = nameAfter(text, /case\s*name/) ?? nameAfter(text, /notice\s*for/)
+    if (name) ask = withoutName(ask, name)
     return ask.replace(/\s+/g, ' ').replace(/\s+([.,;:])/g, '$1').trim()
   }
   if (letterType === 'MC355' && /box\s+checked/i.test(text)) {
     return 'The papers or information with a checked box on the other pages of this letter.'
   }
   return null
+}
+
+// Sentences printed on every MC 239 A, which come after the reason.
+const STANDARD_WORDING =
+  /the regulations|if you are eligible|we asked you for|keep your|rules:|medi-cal benefits will|your eligibility to receive|do not throw/i
+
+// How many letters must change to turn one word into another.
+function lettersApart(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    let diagonal = row[0]
+    row[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const above = row[j]
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1))
+      diagonal = above
+    }
+  }
+  return row[b.length]
+}
+
+// Takes out the person's name, and misread copies of it (a word within two
+// letters of a word of the name), from a sentence.
+function withoutName(sentence: string, name: string): string {
+  const nameWords = name.toLowerCase().split(/\s+/).filter((w) => w.length >= 4)
+  return sentence
+    .split(name)
+    .join(' ')
+    .split(/(\s+)/)
+    .filter((word) => {
+      const bare = word.replace(/[^A-Za-z]/g, '').toLowerCase()
+      return !(/^[A-Z]/.test(word) && bare.length >= 4 && nameWords.some((n) => lettersApart(bare, n) <= 2))
+    })
+    .join('')
 }
 
 // Returns the facts, plus the names of any that had to be repaired.

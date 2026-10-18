@@ -33,7 +33,8 @@ export default function Explanation({ facts }: { facts: Record<string, unknown> 
   }, [facts, language])
 
   return (
-    <div className="card">
+    // lang tells the "Read it to me" button which voice to use.
+    <div className="card" lang={language === 'spanish' ? 'es' : 'en'}>
       <div className="explanation-top">
         <h2>{language === 'english' ? 'What this letter means' : 'Qué significa esta carta'}</h2>
         <div className="language-switch">
@@ -48,7 +49,7 @@ export default function Explanation({ facts }: { facts: Record<string, unknown> 
       {state === 'loading' && <p className="hint" role="status">{language === 'english' ? 'Writing…' : 'Escribiendo…'}</p>}
       {state === 'failed' && (
         <p className="hint">
-          We could not write a safe explanation right now. Your deadlines below are still correct.
+          We couldn't explain it right now. The date and steps above are still right.
         </p>
       )}
       {state === 'done' && result && (

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { findAsk, findCaseNumber, findFacts, findWorkerName, findWorkerPhone, firstDate, fixCaseNumber } from './localFacts'
+import { findAsk, findCaseNumber, findCountyPhone, findFacts, findWorkerFax, findWorkerName, findWorkerPhone, firstDate, fixCaseNumber } from './localFacts'
 
 // Lines taken from real text-reader output of the fake letters.
 test('reads both date styles', () => {
@@ -108,4 +108,27 @@ test('MC 355: points to the checked boxes on the other pages', () => {
   const text = 'We still need the information where there is a box\nchecked on the following pages.'
   expect(findAsk(text, 'MC355')).toContain('checked box')
   expect(findAsk('nothing here', 'MC355')).toBeNull()
+})
+
+// From the Oct 18 walkthroughs.
+test('MC 239 A reason: a misread copy of the name is taken out', () => {
+  const text = 'CASE NAME: Lorraine Morales\nYou did not send the following information we asked for: life Lotraine Morelos\ninsurance policy; retirement account statement.'
+  expect(findAsk(text, 'MC_239A')).toBe(
+    'You did not send the following information we asked for: life insurance policy; retirement account statement.',
+  )
+})
+
+test('MC 239 A reason: stops at the standard wording when the full stop was misread', () => {
+  const text = [
+    'You did not send informati Nn about your property, which is now required for your renewal: real',
+    'The regulations which require this action are California Code of Regulations, Title 22, Section(s):',
+    'If you are eligible for Medicare and your Medi-Cal eligibility is discontinued.',
+  ].join('\n')
+  expect(findAsk(text, 'MC_239A')).toBe('You did not send informati Nn about your property, which is now required for your renewal: real')
+})
+
+test('the county phone on a renewal, and the worker fax on a request for papers', () => {
+  expect(findCountyPhone('Easy ways to give us your form and proof:\nBy phone at (669) 610-5875')).toBe('(669) 610-5875')
+  expect(findWorkerFax('Worker Fax Number: (650) 847-2201\nWorker Telephone Number: (650) 374-4482')).toBe('(650) 847-2201')
+  expect(findWorkerFax('no fax here')).toBeNull()
 })

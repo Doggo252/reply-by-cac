@@ -26,7 +26,11 @@ export default function Watcher({ letter, helperOffered, onUseHelper, onMakeRepl
       .catch(() => setWarnings([]))
   }, [letter, done])
 
-  const shown = warnings.filter((w) => w.kind === 'mistake' || !later.includes(w.deadline.id))
+  // On the day the letter is first read, the letter screen already shows the
+  // date and the job, so "Did you already send it?" would only confuse. The
+  // deadline warning starts when the person comes back on a later day.
+  const firstDay = (letter.savedAt ?? '').slice(0, 10) === new Date().toISOString().slice(0, 10)
+  const shown = warnings.filter((w) => w.kind === 'mistake' || (!firstDay && !later.includes(w.deadline.id)))
   if (shown.length === 0) return null
 
   return (

@@ -30,3 +30,14 @@ test('a misread name or a label is not taken for a name', () => {
 test('nothing found gives nothing', () => {
   expect(aboutFromLetter('')).toEqual({})
 })
+
+// From the Oct 18 walkthroughs.
+test('a street with no St or Ave, right above the city line', () => {
+  const text = 'CASE NAME: Lorraine Morales\nLorraine Morales\n1240 Broadway\nSunnyvale, CA 94086-1907'
+  expect(aboutFromLetter(text)).toMatchObject({ street: '1240 Broadway', city: 'Sunnyvale', zip: '94086' })
+})
+
+test('an apartment number stays with the street', () => {
+  const text = 'Case name: Robert Chen\nRobert Chen\n8966 Alameda Ave Apt 23\nMenlo Park CA 94025-5539'
+  expect(aboutFromLetter(text)).toMatchObject({ street: '8966 Alameda Ave Apt 23', city: 'Menlo Park', zip: '94025' })
+})

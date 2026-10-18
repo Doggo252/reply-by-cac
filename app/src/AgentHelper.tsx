@@ -14,12 +14,14 @@ import { useEffect, useRef, useState } from 'react'
 import { askAI } from './agentApi'
 import { runAgent, type LogLine, type RunEnd } from './agentLoop'
 import { newRunState, MAX_PAPERS, type AgentWorld, type Draft, type ReviewAnswer, type ReviewView } from './agentTools'
-import { letterId, logRecord, logWords, restoreLetterBody } from './agentWords'
+import { closestItem, letterId, logRecord, logWords, restoreLetterBody } from './agentWords'
 import { check } from './checker'
 import { todayOnThisPhone } from './deadlines'
 import { readText } from './ocr'
-import { buildPacket, type AboutYou, type PacketInput } from './packet'
-import { AboutForm, Done, fetchForm } from './ReplyPacket'
+import { buildPacket, coverNote, type AboutYou, type PacketInput } from './packet'
+import { AboutForm, Done, fetchForm, RENEWAL_PHOTOS } from './ReplyPacket'
+import PaperChecklist, { missingPhotos } from './PaperChecklist'
+import { whatToSend } from './letterJob'
 import SignaturePad from './SignaturePad'
 import { addPaper, listEvents, listPapers, loadAbout, saveAbout, saveHelperLog, type Paper, type SavedLetter } from './storage'
 import { FACT_LABELS, savedOn } from './words'
@@ -73,6 +75,7 @@ export default function AgentHelper({ letter, onBack, onManual }: {
           saveAbout(next)
           setAbout(next)
           setStage('consent')
+          window.scrollTo(0, 0)
         }}
       />
     )
@@ -81,23 +84,26 @@ export default function AgentHelper({ letter, onBack, onManual }: {
   if (stage === 'consent') {
     return (
       <>
-        <h1 className="page-title">Get my papers ready</h1>
-        <p className="lead">The AI finds your papers and fills in your reply. You look it over and sign. Nothing is sent to the county.</p>
+        <h1 className="page-title">We'll put your reply together for you</h1>
+        <p className="lead">
+          We look at your letter and the papers you've saved, and ask you for photos of anything missing. Then you
+          read it over and sign. We never send anything to the county. You do that yourself.
+        </p>
         <div className="card">
-          <h2>What is sent to the AI</h2>
-          <p className="small">Your name, address, case number and other private details are removed first.</p>
+          <h2>What the AI sees</h2>
+          <p className="small">We take out your name, address and case number first.</p>
           <ol className="checklist">
-            <li>The words and facts from your letter</li>
-            <li>What you wrote on the "What happened" screen</li>
+            <li>What your letter says</li>
+            <li>What you wrote down about papers you sent</li>
             <li>The words on the papers you saved</li>
           </ol>
-          <p className="small">Your photos and your signature stay on this phone.</p>
+          <p className="small">Your photos and your signature never leave this phone.</p>
         </div>
-        <button className="button primary" onClick={start}>
-          Yes, start
+        <button className="button primary big" onClick={start}>
+          Yes, help me
         </button>
         <button className="button" onClick={onManual}>
-          No, I will do it myself
+          No, I'll go step by step
         </button>
         <button className="link" onClick={onBack}>
           Back to my letter
@@ -107,17 +113,17 @@ export default function AgentHelper({ letter, onBack, onManual }: {
   }
 
   if (stage === 'ended') {
-    if (end?.finished && made.current) return <Done paper={made.current} onBack={onBack} />
+    if (end?.finished && made.current) return <Done paper={made.current} letterType={letter.letterType} onBack={onBack} />
     return (
       <>
-        <h1 className="page-title">{end?.finished ? 'The AI helper finished' : 'The AI helper stopped'}</h1>
+        <h1 className="page-title">{end?.finished ? "We're done" : "We couldn't finish"}</h1>
         {end?.message && <p className="lead">{end.message}</p>}
         <ActionLog log={log} />
         <button className="button primary" onClick={start}>
           Try again
         </button>
         <button className="button" onClick={onManual}>
-          Do it myself
+          Go step by step instead
         </button>
         <button className="link" onClick={onBack}>
           Back to my letter
@@ -134,9 +140,9 @@ export default function AgentHelper({ letter, onBack, onManual }: {
       {pause?.kind === 'photo' && <PhotoScreen paperName={pause.paperName} answer={pause.answer} />}
       {!pause && (
         <>
-          <h1 className="page-title">Getting your papers ready</h1>
+          <h1 className="page-title">Putting your reply together…</h1>
           <p className="lead" role="status">
-            Working… This can take a minute.
+            This takes about a minute. Keep this screen open.
           </p>
         </>
       )}
@@ -195,7 +201,13 @@ function makeWorld(
       return text
     },
     listEvents,
-    takePhoto: (paperName) => waitFor<string | null>((answer) => ({ kind: 'photo', paperName, answer })),
+    // Saved under the matching checklist line, so the checklist shows it as done.
+    takePhoto: (asked) =>
+      waitFor<string | null>((answer) => ({
+        kind: 'photo',
+        paperName: closestItem(asked, whatToSend(letter.letterType, letter.facts.ask ?? null)),
+        answer,
+      })),
     review: (view) => waitFor<ReviewAnswer | null>((answer) => ({ kind: 'review', view, answer })),
     sign: () => waitFor<Uint8Array | null>((answer) => ({ kind: 'sign', answer })),
 
@@ -219,6 +231,7 @@ function makeWorld(
         today: todayOnThisPhone(),
         hearing: hearing ? { reason: hearing.reason } : null,
         undoLetter: restore ? restoreLetterBody(restore) : null,
+        toSend: whatToSend(letter.letterType, letter.facts.ask ?? null),
         attachments,
         signature,
         forms: { hearingRequest, renewalSignaturePage },
@@ -241,7 +254,7 @@ function ActionLog({ log }: { log: LogLine[] }) {
   if (log.length === 0) return null
   return (
     <div className="card">
-      <h2>What the AI helper did</h2>
+      <h2>What we've done so far</h2>
       <ol className="action-log">
         {log.map((line, i) => (
           <li key={i}>{logWords(line)}</li>
@@ -281,21 +294,12 @@ function ReviewScreen({ view, letter, answer }: {
   const [reasons, setReasons] = useState<Record<string, string>>(Object.fromEntries(drafts.map((d) => [d.id, d.reason])))
   const [formFacts, setFormFacts] = useState(packet.formFacts)
   const [atLimit, setAtLimit] = useState(false)
+  // The papers the county asked for, each with its own photo button.
+  const photoItems = letter.letterType === 'MC210_RV' ? RENEWAL_PHOTOS : whatToSend(letter.letterType, letter.facts.ask ?? null)
 
   useEffect(() => {
     listPapers().then((all) => setPapers(all.filter((p) => !isReplyPacket(p)))).catch(() => setPapers([]))
   }, [])
-
-  function togglePaper(id: string) {
-    if (paperIds.includes(id)) {
-      setPaperIds(paperIds.filter((p) => p !== id))
-      setAtLimit(false)
-    } else if (paperIds.length >= MAX_PAPERS) {
-      setAtLimit(true)
-    } else {
-      setPaperIds([...paperIds, id])
-    }
-  }
 
   // A kept hearing request needs a reason, like in the manual flow.
   const missingReason = drafts.some((d) => d.kind === 'hearing_request' && kept.includes(d.id) && !reasons[d.id]?.trim())
@@ -303,28 +307,30 @@ function ReviewScreen({ view, letter, answer }: {
 
   return (
     <>
-      <h1 className="page-title">Look it over</h1>
-      <p className="lead">Here is your reply. Change anything you want, then tap Done.</p>
+      <h1 className="page-title">Look over your reply</h1>
+      <p className="lead">This is what we'll send to the county. Read it through, and change anything you want.</p>
 
-      {letter.facts.ask && letter.letterType !== 'MC210_RV' && (
-        <div className="card">
-          <h2>The county needs</h2>
-          <p>{letter.facts.ask}</p>
-        </div>
-      )}
+      <div className="card preview">
+        <p className="preview-label">The cover letter says</p>
+        <p className="preview-note">{coverNote(letter.letterType, packet.formFacts.notice_date)}</p>
+      </div>
 
-      <h2 className="section-title">Papers to send</h2>
-      {papers.length === 0 && <p className="hint">No papers saved yet.</p>}
-      {papers.map((p) => {
-        const on = paperIds.includes(p.id)
-        return (
-          <button key={p.id} className={`choice ${on ? 'on' : ''}`} onClick={() => togglePaper(p.id)}>
-            <strong>{on ? '✓ ' : ''}{p.name}</strong>
-            <span>{on ? 'Will be sent' : 'Tap to send this'}</span>
-          </button>
-        )
-      })}
+      <h2 className="section-title">Your papers</h2>
+      <p className="hint">Tap a button to take a photo of a paper. We'll add it to your reply.</p>
+      <PaperChecklist
+        items={photoItems}
+        papers={papers}
+        chosen={paperIds}
+        onChange={(ids) => {
+          setAtLimit(ids.length > MAX_PAPERS)
+          setPaperIds(ids.slice(0, MAX_PAPERS))
+        }}
+        onPapersChanged={(all) => setPapers(all.filter((p) => !isReplyPacket(p)))}
+      />
       {atLimit && <p className="hint">You can send up to {MAX_PAPERS} papers. Untick one to add another.</p>}
+      {missingPhotos(photoItems, papers, paperIds) > 0 && (
+        <p className="hint">Some papers have no photo yet. That's okay. You can put paper copies in the envelope yourself.</p>
+      )}
 
       {/* The restore letter first, then the hearing (a backup). */}
       {[...drafts]
@@ -426,7 +432,7 @@ function SignScreen({ answer }: { answer: (png: Uint8Array | null) => void }) {
   return (
     <>
       <h1 className="page-title">Sign your reply</h1>
-      <p className="lead">By signing, you say the information is true. Your signature stays on this phone.</p>
+      <p className="lead">Sign in the box with your finger. When you sign, you're saying everything in your reply is true. Your signature stays on this phone.</p>
       <SignaturePad onChange={setSignature} />
       <button className="button primary" disabled={!signature} onClick={() => answer(signature)}>
         Sign
@@ -442,8 +448,8 @@ function SignScreen({ answer }: { answer: (png: Uint8Array | null) => void }) {
 function PhotoScreen({ paperName, answer }: { paperName: string; answer: (paperId: string | null) => void }) {
   return (
     <>
-      <h1 className="page-title">Take a photo</h1>
-      <p className="lead">The AI needs a photo of: {paperName || 'a paper'}.</p>
+      <h1 className="page-title">Can you take a photo of this?</h1>
+      <p className="lead">Please take a photo of: {paperName || 'a paper'}.</p>
       <label className="button primary">
         Take the photo
         <input
@@ -461,7 +467,7 @@ function PhotoScreen({ paperName, answer }: { paperName: string; answer: (paperI
         />
       </label>
       <button className="button" onClick={() => answer(null)}>
-        I do not have it
+        I don't have it
       </button>
     </>
   )

@@ -5,23 +5,28 @@
    - strong contrast, and color is never the only signal
    - one column, one main action at a time */
 
+/* Warm and friendly (Neil's choice, Oct 18): a soft cream page, deep blue for
+   the main actions, warm orange for "act soon", green for "done". */
 :root {
-  --ink: #1b1b1b;
-  --ink-soft: #4a4a4a;
-  --brand: #0b5d56;
-  --brand-soft: #e3f1ef;
-  --page: #faf8f4;
+  --ink: #1f2933;
+  --ink-soft: #52606d;
+  --brand: #1f4e8c;
+  --brand-dark: #173b6b;
+  --brand-soft: #e8eef8;
+  --page: #fbf7f0;
   --card: #ffffff;
-  --line: #d9d4ca;
+  --line: #e6dccb;
+  --warm: #c2410c;
+  --warm-soft: #fdf0e7;
   --red: #b42318;
   --red-soft: #fdecea;
   --amber: #8a5a00;
   --amber-soft: #fff4cc;
   --amber-line: #d9a300;
-  --green: #1e6b37;
-  --green-soft: #e5f4ea;
+  --green: #2f7a3d;
+  --green-soft: #e8f3ea;
 
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 125%; /* 20px, so every rem below is 20px */
   line-height: 1.5;
   color: var(--ink);
@@ -50,6 +55,37 @@ body {
   max-width: 32rem;
   margin: 0 auto;
   padding: calc(1rem + env(safe-area-inset-top)) 0.8rem calc(6rem + env(safe-area-inset-bottom));
+}
+
+/* The top line: the app name, and "Read it to me". */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.read-aloud {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.6rem;
+  padding: 0 0.9rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--brand);
+  background: var(--brand-soft);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.read-aloud[aria-pressed='true'] {
+  color: #fff;
+  background: var(--brand);
+}
+.read-aloud svg {
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 .app-name {
@@ -98,8 +134,9 @@ p {
   margin-top: 1rem;
   padding: 1rem;
   background: var(--card);
-  border: 2px solid var(--line);
-  border-radius: 0.8rem;
+  border: 1.5px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(80, 60, 20, 0.07);
 }
 
 .card p + p {
@@ -127,13 +164,18 @@ p {
   color: var(--brand);
   background: var(--card);
   border: 2px solid var(--brand);
-  border-radius: 0.8rem;
+  border-radius: 999px;
   cursor: pointer;
 }
 
 .button.primary {
   color: #fff;
   background: var(--brand);
+  box-shadow: 0 2px 0 var(--brand-dark);
+}
+.button.primary:active {
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 .button:disabled {
@@ -240,7 +282,7 @@ progress {
   color: var(--ink);
   background: var(--card);
   border: 2px solid var(--line);
-  border-radius: 0.8rem;
+  border-radius: 1rem;
   cursor: pointer;
 }
 .choice:hover,
@@ -646,10 +688,10 @@ details.dev summary {
 /* The letter screen: the one thing to do, in a box that stands out. */
 .job {
   margin-top: 1rem;
-  padding: 1rem;
+  padding: 1rem 1.1rem;
   background: var(--brand-soft);
   border: 2px solid var(--brand);
-  border-radius: 0.8rem;
+  border-radius: 1rem;
 }
 .job-task {
   font-size: 1.3rem;
@@ -669,9 +711,113 @@ details.dev summary {
   background: var(--brand);
   border-radius: 999px;
 }
+.job-tip {
+  margin-top: 0.7rem !important;
+  padding-top: 0.6rem;
+  font-weight: 700;
+  color: var(--warm);
+  border-top: 1.5px solid var(--line);
+}
+/* The date has passed: the box turns warm orange so it can't be missed. */
+.job.late {
+  background: var(--warm-soft);
+  border-color: var(--warm);
+}
+.job.late .job-task {
+  color: var(--warm);
+}
+/* Two weeks or less: the badge turns warm orange. */
+.job-days.soon {
+  background: var(--warm);
+}
 .button.big {
   min-height: 3.4rem;
   font-size: 1.15rem;
+}
+
+/* The papers to send: a plain list on the letter screen, and a list with a
+   photo button on each line in the reply steps. */
+.list-title {
+  font-weight: 700;
+}
+.send-list {
+  margin: 0.4rem 0 0;
+  padding-left: 1.3rem;
+}
+.send-list li {
+  margin-top: 0.3rem;
+}
+.paper-list {
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.paper-row {
+  margin-top: 0.75rem;
+  padding: 0.8rem 1rem;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 0.8rem;
+}
+.paper-row.done {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+.paper-row-name {
+  font-weight: 700;
+}
+.paper-row .button {
+  margin-top: 0.5rem;
+}
+
+/* "Look over your reply": the reply as it will be sent, page by page. */
+.card.preview p + p {
+  margin-top: 0.3rem;
+}
+.preview-label {
+  margin-top: 0.8rem !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.preview-label:first-child {
+  margin-top: 0 !important;
+}
+.preview-note {
+  margin-top: 0.7rem !important;
+  padding: 0.6rem 0.8rem;
+  background: var(--page);
+  border-radius: 0.5rem;
+}
+.thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+.thumb {
+  margin: 0;
+}
+.thumb img,
+.thumb span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  font-weight: 800;
+  color: var(--ink-soft);
+  background: #eee;
+  border: 2px solid var(--line);
+  border-radius: 0.5rem;
+}
+.thumb figcaption {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
 }
 
 /* "More" sections the person opens only if they want them. */
@@ -679,8 +825,8 @@ details.more {
   margin-top: 1rem;
   padding: 0.2rem 1rem 0.8rem;
   background: var(--card);
-  border: 2px solid var(--line);
-  border-radius: 0.8rem;
+  border: 1.5px solid var(--line);
+  border-radius: 1rem;
 }
 details.more > summary {
   min-height: 2.6rem;
@@ -706,7 +852,11 @@ details.more .card {
 
 /* The watcher's warnings: deadlines 7 days away or less, county mistakes. */
 .card.warning {
-  border: 3px solid var(--amber);
+  background: var(--warm-soft);
+  border: 2px solid var(--warm);
+}
+.card.warning h2 {
+  color: var(--warm);
 }
 .card.warning h2 {
   margin-top: 0;

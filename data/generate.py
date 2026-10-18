@@ -55,17 +55,25 @@ HARD_CASE_SHARE = 0.10
 # computer, so it is never handwritten.)
 HANDWRITTEN_SHARE = 0.2
 
-# Fonts already on a Mac, so nothing has to be downloaded. Any that are
-# missing are skipped. The forms' own printed words are Arial; the filled-in
-# values vary, because we do not yet know what a real county printer uses.
+# Fonts already on a Mac or a Windows PC, so nothing has to be downloaded.
+# Any that are missing are skipped, so a Mac uses only the Mac ones (and
+# makes the same letters as before) and Windows uses only the Windows ones.
+# The forms' own printed words are Arial; the filled-in values vary, because
+# we do not yet know what a real county printer uses.
 SYSTEM_FONTS = Path("/System/Library/Fonts")
+WINDOWS_FONTS = Path("C:/Windows/Fonts")
 PRINT_FONTS = [SYSTEM_FONTS / "Supplemental" / name for name in
                ["Courier New.ttf", "Times New Roman.ttf", "Arial.ttf", "Verdana.ttf", "Tahoma.ttf"]]
+PRINT_FONTS += [WINDOWS_FONTS / name for name in ["cour.ttf", "times.ttf", "arial.ttf", "verdana.ttf", "tahoma.ttf"]]
 HANDWRITING_FONTS = [SYSTEM_FONTS / "Supplemental" / "Bradley Hand Bold.ttf",
                      SYSTEM_FONTS / "Supplemental" / "ChalkboardSE.ttc",
                      SYSTEM_FONTS / "Noteworthy.ttc"]
+HANDWRITING_FONTS += [WINDOWS_FONTS / name for name in ["segoesc.ttf", "segoepr.ttf", "Inkfree.ttf"]]
 PRINT_FONTS = [f for f in PRINT_FONTS if f.exists()]
 HANDWRITING_FONTS = [f for f in HANDWRITING_FONTS if f.exists()]
+# The bold font for the "received" stamp.
+BOLD_FONT = next((f for f in [SYSTEM_FONTS / "Supplemental" / "Arial Bold.ttf", WINDOWS_FONTS / "arialbd.ttf"]
+                  if f.exists()), None)
 # Pen colors for handwriting: black, blue, dark blue.
 INK_COLORS = [(0.05, 0.05, 0.05), (0.1, 0.2, 0.6), (0.05, 0.1, 0.35)]
 
@@ -535,7 +543,7 @@ def stamp_png(county, notice_date, rng):
     """A rubber stamp as a see-through PNG: bold lines of text, maybe a
     border, in blue, purple or red ink that is patchy the way stamp ink is,
     and a little crooked."""
-    font = ImageFont.truetype(str(SYSTEM_FONTS / "Supplemental" / "Arial Bold.ttf"), 46)
+    font = ImageFont.truetype(str(BOLD_FONT), 46)
     lines = [f"COUNTY OF {county.upper()}", "SOCIAL SERVICES AGENCY", "MEDI-CAL PROGRAM"]
     if rng.random() < 0.5:
         lines.append(notice_date.strftime("%b %d %Y").upper())

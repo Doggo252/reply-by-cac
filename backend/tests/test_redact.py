@@ -65,3 +65,16 @@ def test_case_number_misread_by_the_text_reader():
 
 def test_city_line_with_junk_after_the_zip():
     assert redact("Los Altos, CA 94024-5804 oie")[0] == "[address]"
+
+
+def test_ordinary_words_or_a_date_after_a_name_label_are_not_hidden_everywhere():
+    # From a phone photo of the printed test letter (Oct 18).
+    text = "\n".join([
+        "Name(s): 10/31/2026.",
+        "Medi-Cal benefits will be discontinued for:",
+        "Keep your plastic card. Please do not throw the card away.",
+        "We asked you for the information, but we have not received it and it is essential in determining your Medi-Cal eligibility.",
+    ])
+    clean, _ = redact(text)
+    assert "We asked you for the information, but we have not received it" in clean
+    assert "determining your Medi-Cal eligibility" in clean

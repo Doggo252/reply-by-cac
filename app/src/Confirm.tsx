@@ -36,10 +36,10 @@ export default function Confirm({ fields, facts, flags, onConfirm }: Props) {
   return (
     <form className="card" onSubmit={submit}>
       <h2>Is this right?</h2>
-      <p>Look at your letter and check each one. Tap a box to fix it.</p>
+      <p>Look at your letter and check each one. If something is wrong, tap it and fix it.</p>
       {flaggedCount > 0 && (
         <p className="fact-flag">
-          {flaggedCount === 1 ? '1 box is yellow. Please check it.' : `${flaggedCount} boxes are yellow. Please check them.`}
+          {flaggedCount === 1 ? 'Please check the yellow box.' : `Please check the ${flaggedCount} yellow boxes.`}
         </p>
       )}
       {fields.map((field) => {
@@ -58,7 +58,7 @@ export default function Confirm({ fields, facts, flags, onConfirm }: Props) {
         )
       })}
       <button type="submit" className="button primary">
-        Yes, these are right
+        Yes, it all looks right
       </button>
     </form>
   )

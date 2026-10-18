@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { addPaper, listPapers, loadHelperLog, removePaper, saveHelperLog, type Paper } from './storage'
 import { fingerprint, shortPrint } from './fingerprint'
 import { savedOn } from './words'
+import { printOrSend } from './printOrSend'
 
 export default function Vault({ onShowResults }: { onShowResults: () => void }) {
   const [papers, setPapers] = useState<Paper[] | null>(null)
@@ -52,7 +53,7 @@ export default function Vault({ onShowResults }: { onShowResults: () => void }) 
     <>
       <h1 className="page-title">My papers</h1>
       <p className="lead">
-        Keep photos of receipts, mail slips, and anything you send. They stay on this phone.
+        Your replies, and photos of your papers and receipts, are kept here. They stay on this phone.
       </p>
       {problem && <p className="error">{problem}</p>}
 
@@ -65,7 +66,9 @@ export default function Vault({ onShowResults }: { onShowResults: () => void }) 
         <input type="file" accept="image/*,application/pdf" onChange={add} hidden disabled={saving} />
       </label>
 
-      {papers && papers.length === 0 && <p className="hint">No papers saved yet.</p>}
+      {papers && papers.length === 0 && (
+        <p className="hint">Nothing here yet. When you take photos of papers or finish a reply, you'll find them here.</p>
+      )}
       {papers?.map((paper) => (
         <PaperCard key={paper.id} paper={paper} onRemove={() => remove(paper)} />
       ))}
@@ -125,17 +128,15 @@ function PaperCard({ paper, onRemove }: { paper: Paper; onRemove: () => void }) 
       <div>
         <p className="paper-name">{paper.name}</p>
         <p className="small">Saved {savedOn(paper.addedAt)}</p>
+        {unchanged === true && <p className="proof">✓ Never changed since you saved it</p>}
+        {unchanged === false && <p className="error">This file was changed after you saved it.</p>}
         <p className="small">
-          Fingerprint <span className="fingerprint">{shortPrint(paper.sha256)}</span>
+          Code <span className="fingerprint">{shortPrint(paper.sha256)}</span>
         </p>
-        {unchanged === true && <p className="proof">Not changed since it was saved</p>}
-        {unchanged === false && <p className="error">This file does not match its fingerprint.</p>}
         <div className="event-bottom">
-          {url && (
-            <a className="link" href={url} target="_blank" rel="noreferrer">
-              Open
-            </a>
-          )}
+          <button className="link" onClick={() => printOrSend(paper)}>
+            Print or send
+          </button>
           <button className="link danger" onClick={onRemove}>
             Remove
           </button>

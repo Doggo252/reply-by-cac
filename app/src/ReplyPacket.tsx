@@ -17,29 +17,22 @@
 import { useEffect, useState } from 'react'
 import { check, type Mismatch } from './checker'
 import { aboutFromLetter } from './aboutFromLetter'
-import { buildPacket, paperFactsFrom, type AboutYou, type Attachment, type PacketInput, type PaperFacts } from './packet'
+import { buildPacket, coverNote, paperFactsFrom, type AboutYou, type Attachment, type PacketInput, type PaperFacts } from './packet'
 import { addEvent, addPaper, listPapers, loadAbout, loadDrafts, saveAbout, type Paper, type SavedLetter } from './storage'
 import { todayOnThisPhone } from './deadlines'
 import { shortPrint } from './fingerprint'
 import { FACT_LABELS, inWords, savedOn } from './words'
 import SignaturePad from './SignaturePad'
+import PaperSteps, { type PaperAnswer } from './PaperSteps'
+import { helpFor } from './paperHelp'
+import { printOrSend } from './printOrSend'
+import { whatToSend } from './letterJob'
 
 type Step = 'about' | 'papers' | 'check' | 'sign' | 'done'
 
-// The sections of the MC 210 RV to fill in by hand, with their page numbers
-// on the October 2020 form. The property part matters again since 2026
-// (ACWDL 25-14).
-const RENEWAL_CHECKLIST = [
-  'Page 2: your contact information. Check the box if it is still right.',
-  'Pages 3 to 4: who lives with you.',
-  'Pages 5 to 7: income. Attach proof, like a Social Security letter.',
-  'Page 8: expenses. Attach proof.',
-  'Pages 9 to 10: money and property, like bank accounts. Attach a bank statement.',
-  'The property insert that came with the form (new in 2026). Fill it in too.',
-  'Page 11: Medicare.',
-  'Pages 12 to 15: long-term care, other insurance, and household changes.',
-  'Page 17: sign and date. This app makes a signed copy of this page for you.',
-]
+// For a renewal, the form itself goes in the envelope on paper. These are the
+// proof papers that go with it.
+export const RENEWAL_PHOTOS = ['Proof of income, like a Social Security letter', 'Your newest bank statement']
 
 export default function ReplyPacket({ letter, withHearing, onBack }: {
   letter: SavedLetter
@@ -50,6 +43,19 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
   const [about, setAbout] = useState<AboutYou | null>(loadAbout)
   const drafts = loadDrafts()
   const isStop = letter.letterType === 'MC_239A'
+  // What the county asked for. A request for papers lists them as checked
+  // boxes on page 2, so the person picks them first.
+  const [pickedBoxes, setPickedBoxes] = useState<string[] | null>(null)
+  const toSend =
+    letter.letterType === 'MC355' ? (pickedBoxes ?? []) : whatToSend(letter.letterType, letter.facts.ask ?? null)
+  // The papers to go through one at a time. For a renewal, the form itself
+  // goes in the envelope on paper; these are the proof that goes with it.
+  const photoItems = letter.letterType === 'MC210_RV' ? RENEWAL_PHOTOS : letter.letterType === 'MC355' ? pickedBoxes : toSend
+  const [answers, setAnswers] = useState<Record<string, PaperAnswer>>({})
+  const [renewalPart, setRenewalPart] = useState<number | 'ask' | 'done'>('ask')
+  // "I don't have one" answers become plain sentences on the cover letter.
+  const statements = (photoItems ?? []).filter((item) => answers[item] === 'none').map((item) => helpFor(item).noneLine!)
+  const later = (photoItems ?? []).filter((item) => answers[item] === 'later')
   const [hearing, setHearing] = useState(isStop && withHearing)
   const [reason, setReason] = useState(drafts?.hearing_reason ?? '')
   const [undoLetter, setUndoLetter] = useState(isStop && !!drafts)
@@ -104,6 +110,8 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
         today: todayOnThisPhone(),
         hearing: isStop && hearing ? { reason } : null,
         undoLetter: isStop && undoLetter && drafts ? drafts.rescission_letter : null,
+        toSend,
+        statements,
         attachments,
         signature,
         forms: { hearingRequest, renewalSignaturePage },
@@ -136,68 +144,34 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
   }
 
   if (step === 'papers') {
-    const toSend = papers.filter((p) => !p.name.startsWith('Reply packet'))
     return (
-      <>
-        <span className="step">Step 1 of 4</span>
-        <h1 className="page-title">Your papers</h1>
-
-        {letter.letterType === 'MC210_RV' ? (
-          <div className="card">
-            <h2>First, fill in your renewal form by hand</h2>
-            <p className="small">Use the paper form that came with your letter. Answer these parts:</p>
-            <ol className="checklist">
-              {RENEWAL_CHECKLIST.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ol>
-            <p className="small">Then add photos of your proof below, like a bank statement.</p>
-          </div>
-        ) : (
-          <div className="card">
-            <h2>The county needs</h2>
-            <p>{letter.facts.ask ?? 'The papers listed on your letter.'}</p>
-            <p className="small">Add a photo of each one below.</p>
-          </div>
-        )}
-
-        <h2 className="section-title">Papers to send</h2>
-        {toSend.length === 0 && <p className="hint">No papers saved yet. Take a photo of each one.</p>}
-        {toSend.map((p) => {
-          const on = chosen.includes(p.id)
-          return (
-            <button
-              key={p.id}
-              className={`choice ${on ? 'on' : ''}`}
-              onClick={() => setChosen(on ? chosen.filter((id) => id !== p.id) : [...chosen, p.id])}
-            >
-              <strong>{on ? '✓ ' : ''}{p.name}</strong>
-              <span>{on ? 'Will be sent' : 'Tap to send this'}</span>
-            </button>
-          )
-        })}
-        <label className="button">
-          Take a photo of a paper
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            hidden
-            onChange={async (e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ''
-              if (!file) return
-              const paper = await addPaper(file, `Photo, ${savedOn(new Date().toISOString())}`)
-              setPapers(await listPapers())
-              setChosen((old) => [...old, paper.id])
-            }}
-          />
-        </label>
-
+      <PaperSteps
+        letterType={letter.letterType}
+        items={photoItems}
+        onItems={setPickedBoxes}
+        answers={answers}
+        onAnswer={(item, answer) =>
+          setAnswers((old) => {
+            const next = { ...old }
+            if (answer) next[item] = answer
+            else delete next[item]
+            return next
+          })
+        }
+        papers={papers}
+        chosen={chosen}
+        onChosen={setChosen}
+        onPapersChanged={setPapers}
+        renewalPart={renewalPart}
+        onRenewalPart={(part) => {
+          setRenewalPart(part)
+          window.scrollTo(0, 0)
+        }}
+      >
         {isStop && drafts && (
           <button className={`choice ${undoLetter ? 'on' : ''}`} onClick={() => setUndoLetter(!undoLetter)}>
-            <strong>{undoLetter ? '✓ ' : ''}Letter asking the county to fix its mistake</strong>
-            <span>Written from what you wrote down on the "What happened" screen.</span>
+            <strong>{undoLetter ? '✓ ' : ''}Add a letter asking the county to fix their mistake</strong>
+            <span>We wrote it from what you told us you sent.</span>
           </button>
         )}
 
@@ -205,12 +179,12 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
           <>
             <button className={`choice ${hearing ? 'on' : ''}`} onClick={() => setHearing(!hearing)}>
               <strong>{hearing ? '✓ ' : ''}Also ask for a hearing</strong>
-              <span>Only if you think the county made a mistake. A judge looks at it.</span>
+              <span>Only if you think the county got it wrong. A judge will look at it.</span>
             </button>
             {hearing && (
               <label className="field">
-                <span>Why do you think the county is wrong?</span>
-                <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Like: I sent my papers on time." />
+                <span>Why do you think the county got it wrong?</span>
+                <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="For example: I mailed my papers on time." />
               </label>
             )}
           </>
@@ -226,14 +200,14 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
         >
           Next
         </button>
-        {hearing && !reason.trim() && <p className="hint">Write why, or untick the hearing.</p>}
+        {hearing && !reason.trim() && <p className="hint">Tell us why, or untick the hearing.</p>}
         <button className="link" onClick={onBack}>
           Back to my letter
         </button>
         <button className="link" onClick={() => go('about')}>
           Change my name or address
         </button>
-      </>
+      </PaperSteps>
     )
   }
 
@@ -242,29 +216,85 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
     return (
       <>
         <span className="step">Step 2 of 4</span>
-        <h1 className="page-title">Check your reply</h1>
+        <h1 className="page-title">Look over your reply</h1>
 
         {passed && !changing && (
           <>
+            <p className="lead">This is what we'll send to the county. Read it through. You can change anything before you sign.</p>
             <p className="all-good" role="status">
-              ✓ Everything on your reply matches your letter.
+              ✓ The dates and numbers match your letter.
             </p>
-            <div className="card">
+
+            <div className="card preview">
+              <p className="preview-label">Page 1: the cover letter</p>
+              <p>To: {about!.county} County, Medi-Cal</p>
+              <p>
+                From: {about!.name}, {about!.street}, {about!.city}
+              </p>
               {Object.entries(paperFacts)
-                .filter(([, value]) => value)
+                .filter(([field, value]) => value && field !== 'worker_name' && field !== 'worker_phone')
                 .map(([field, value]) => (
                   <p key={field}>
-                    <span className="small">{FACT_LABELS[field] ?? field}</span>
-                    <br />
-                    <strong>{letterValue(field, value)}</strong>
+                    {FACT_LABELS[field] ?? field}: <strong>{letterValue(field, value)}</strong>
                   </p>
                 ))}
+              <p className="preview-note">
+                {[coverNote(letter.letterType, paperFacts.notice_date), ...statements].join(' ')}
+              </p>
+              {later.length > 0 && (
+                <p className="small">You said you'll send these later: {later.join(', ')}.</p>
+              )}
+              <p className="preview-label">It lists the papers the county asked for:</p>
+              <ul className="send-list">
+                {toSend.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
             </div>
-            <button className="button primary" onClick={() => go('sign')}>
-              Next
+
+            {chosen.length > 0 ? (
+              <div className="card preview">
+                <p className="preview-label">Then your photos</p>
+                <div className="thumbs">
+                  {papers
+                    .filter((p) => chosen.includes(p.id))
+                    .map((p) => (
+                      <PaperThumb key={p.id} paper={p} />
+                    ))}
+                </div>
+              </div>
+            ) : (
+              <p className="hint">No photos are in your reply. Remember to put the paper copies in the envelope.</p>
+            )}
+
+            {isStop && undoLetter && drafts && (
+              <div className="card preview">
+                <p className="preview-label">Then your letter asking the county to fix their mistake</p>
+                <p className="draft-text">{drafts.rescission_letter}</p>
+              </div>
+            )}
+            {isStop && hearing && (
+              <div className="card preview">
+                <p className="preview-label">Then your hearing request</p>
+                <p>Why you think the county got it wrong:</p>
+                <p className="draft-text">{reason}</p>
+              </div>
+            )}
+
+            <button className="button primary big" onClick={() => go('sign')}>
+              It looks right. Next, sign it
             </button>
-            <button className="link" onClick={() => setChanging(true)}>
-              Something wrong? Change it
+            <p className="hint">Want to change something?</p>
+            <div className="button-row">
+              <button className="button" onClick={() => go('papers')}>
+                The papers
+              </button>
+              <button className="button" onClick={() => setChanging(true)}>
+                A date or number
+              </button>
+            </div>
+            <button className="link" onClick={() => go('about')}>
+              My name or address
             </button>
           </>
         )}
@@ -307,11 +337,11 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
       <>
         <span className="step">Step 3 of 4</span>
         <h1 className="page-title">Sign your reply</h1>
-        <p className="lead">Sign with your finger. By signing, you say the information is true.</p>
+        <p className="lead">Sign in the box with your finger. When you sign, you're saying everything in your reply is true.</p>
         <SignaturePad onChange={setSignature} />
         {problem && <p className="error">{problem}</p>}
-        <button className="button primary" onClick={makePacket} disabled={!signature || working}>
-          {working ? 'Making your reply…' : 'Make my reply'}
+        <button className="button primary big" onClick={makePacket} disabled={!signature || working}>
+          {working ? 'Putting your reply together…' : 'Sign and finish'}
         </button>
         <button className="link" onClick={() => go('check')}>
           Back
@@ -320,20 +350,12 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
     )
   }
 
-  return <Done paper={made!} onBack={onBack} />
+  return <Done paper={made!} letterType={letter.letterType} onBack={onBack} />
 }
 
-// The packet is made. Print it, share it, then mark it sent.
-export function Done({ paper, onBack }: { paper: Paper; onBack: () => void }) {
-  const [url] = useState(() => URL.createObjectURL(paper.file))
+// The packet is made. Print it or send it, then mark it sent.
+export function Done({ paper, letterType, onBack }: { paper: Paper; letterType?: string; onBack: () => void }) {
   const [sent, setSent] = useState(false)
-  useEffect(() => () => URL.revokeObjectURL(url), [url])
-
-  async function share() {
-    const file = new File([paper.file], paper.name, { type: 'application/pdf' })
-    if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: paper.name }).catch(() => {})
-    else window.open(url, '_blank')
-  }
 
   async function markSent() {
     await addEvent({
@@ -348,28 +370,34 @@ export function Done({ paper, onBack }: { paper: Paper; onBack: () => void }) {
 
   return (
     <>
+      <span className="step">Step 4 of 4</span>
       <h1 className="page-title">Your reply is ready</h1>
-      <p className="all-good">✓ Saved in My papers</p>
-      <p className="lead">Fingerprint {shortPrint(paper.sha256)}. This proves later that the packet was not changed.</p>
-      <a className="button primary" href={url} target="_blank" rel="noreferrer">
-        Open it to print
-      </a>
-      <button className="button" onClick={share}>
-        Share it (email, text, or upload)
+      <p className="all-good">✓ We saved it in My papers</p>
+      <button className="button primary big" onClick={() => printOrSend(paper)}>
+        Print it or send it
       </button>
       <div className="card">
-        <h2>How to send it</h2>
-        <p>Mail it, fax it, or bring it to your county office. Keep the receipt or a photo of the envelope.</p>
-        <p>Ask the office to stamp a copy with the date. That copy is your best proof.</p>
+        <h2>Now send it to the county</h2>
+        <ol className="checklist">
+          <li>Print it.</li>
+          <li>
+            {letterType === 'MC210_RV'
+              ? 'Put it in an envelope with your renewal form, the property form, and any paper copies you didn\'t take a photo of.'
+              : 'Put it in an envelope with any paper copies you didn\'t take a photo of.'}
+          </li>
+          <li>Mail it, fax it, or take it to your county office.</li>
+          <li>If you go in person, ask them to stamp a copy with today's date. Keep that copy. It's your proof.</li>
+        </ol>
       </div>
       {sent ? (
-        <p className="all-good">✓ Added to My timeline for {inWords(todayOnThisPhone(), false)}</p>
+        <p className="all-good">✓ We wrote down that you sent it on {inWords(todayOnThisPhone(), false)}</p>
       ) : (
         <button className="button" onClick={markSent}>
           I sent it today
         </button>
       )}
-      <button className="button" onClick={onBack}>
+      <p className="small">Saved with the code {shortPrint(paper.sha256)}. It shows later that your reply was never changed.</p>
+      <button className="link" onClick={onBack}>
         Back to my letter
       </button>
     </>
@@ -435,9 +463,29 @@ export function AboutForm({ about, letterText, onSave, onBack }: {
   )
 }
 
-// What the letter says, written for people: dates in words.
+// A small picture of a saved paper, for looking over the reply.
+function PaperThumb({ paper }: { paper: Paper }) {
+  const [url, setUrl] = useState<string | null>(null)
+  useEffect(() => {
+    const address = URL.createObjectURL(paper.file)
+    setUrl(address)
+    return () => URL.revokeObjectURL(address)
+  }, [paper])
+  return (
+    <figure className="thumb">
+      {paper.type.startsWith('image/') && url ? <img src={url} alt="" /> : <span>PDF</span>}
+      <figcaption>{paper.name}</figcaption>
+    </figure>
+  )
+}
+
+// What the letter says, written for people: dates in words. The forms write
+// dates as 08/28/2026, the letter facts as 2026-08-28.
 function letterValue(field: string, value: string): string {
-  return field.endsWith('_date') && /^\d{4}-\d{2}-\d{2}$/.test(value) ? inWords(value, false) : value
+  if (!field.endsWith('_date')) return value
+  const us = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value)
+  const iso = us ? `${us[3]}-${us[1]}-${us[2]}` : value
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? inWords(iso, false) : value
 }
 
 export async function fetchForm(path: string): Promise<Uint8Array> {

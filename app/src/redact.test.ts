@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
 import { redact } from './redact'
+import cases from './fixtures/redact_cases.json'
 
 test('blanks a Social Security number', () => {
   const { text, counts } = redact('SSN: 123-45-6789 on file')
@@ -97,4 +98,26 @@ test('a city line with junk after the ZIP is caught', () => {
 test('titles and form lines are not mistaken for names', () => {
   const { text } = redact('MEDI-CAL REQUEST FOR INFORMATION\nNOTICE OF ACTION\nSocial Services Agency')
   expect(text).toBe('MEDI-CAL REQUEST FOR INFORMATION\nNOTICE OF ACTION\nSocial Services Agency')
+})
+
+// From a phone photo of the printed test letter (Oct 18): the line after
+// "discontinued for:" was ordinary words, not a name, and "Name(s):" was
+// followed by a date. Neither may be blanked all over the page.
+test('ordinary words or a date after a name label are not hidden everywhere', () => {
+  const text = [
+    'Name(s): 10/31/2026.',
+    'Medi-Cal benefits will be discontinued for:',
+    'Keep your plastic card. Please do not throw the card away.',
+    'We asked you for the information, but we have not received it and it is essential in determining your Medi-Cal eligibility.',
+  ].join('\n')
+  const clean = redact(text).text
+  expect(clean).toContain('We asked you for the information, but we have not received it')
+  expect(clean).toContain('determining your Medi-Cal eligibility')
+  expect(redact(text).names).toEqual([])
+})
+
+// The phone and the server must blank exactly the same things. These are the
+// server's answers on 200 test letters (core/eval/make_redact_cases.py).
+test('gives the same answers as the server copy, backend/redact.py', () => {
+  for (const c of cases as { text: string; clean: string }[]) expect(redact(c.text).text).toBe(c.clean)
 })

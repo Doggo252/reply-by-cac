@@ -11,6 +11,7 @@ import Vault from './Vault'
 import ReplyPacket from './ReplyPacket'
 import AgentHelper from './AgentHelper'
 import Dashboard from './Dashboard'
+import ReadAloud from './ReadAloud'
 import { loadLetter, saveDrafts, saveLetter, type SavedLetter } from './storage'
 
 type Tab = 'letter' | 'papers'
@@ -75,7 +76,10 @@ export default function App() {
   return (
     <>
       <main className="screen">
-        <p className="app-name">ReplyBy</p>
+        <div className="top-bar">
+          <p className="app-name">ReplyBy</p>
+          <ReadAloud />
+        </div>
         {tab === 'letter' && letterTab()}
         {tab === 'papers' &&
           (results ? (

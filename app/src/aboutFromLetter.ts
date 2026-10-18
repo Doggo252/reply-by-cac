@@ -16,8 +16,11 @@ function nameAfterLabel(text: string): string | null {
   return null
 }
 
-// "6499 Castro St" or "5212 Alameda Ave".
-const STREET = /\b\d{2,6}[ \t]+(?:[A-Z][a-z]+[ \t]+){1,3}(?:St|Ave|Rd|Dr|Blvd|Way|Ln|Ct|Pl)\b\.?/
+// "6499 Castro St", "5212 Alameda Ave" or "8966 Alameda Ave Apt 23".
+const STREET = /\b\d{2,6}[ \t]+(?:[A-Z][a-z]+[ \t]+){1,3}(?:St|Ave|Rd|Dr|Blvd|Way|Ln|Ct|Pl)\b\.?(?:[ \t]+(?:Apt|Unit|#)[ \t]*\w+)?/
+// A street with no "St" or "Ave" ("1240 Broadway", "3323 El Camino Real"),
+// counted only when the city line comes right after it.
+const PLAIN_STREET = /^[ \t]*(\d{2,6}[ \t]+[A-Z][A-Za-z]+(?:[ \t]+[A-Z][A-Za-z]+){0,3})[ \t]*$(?=\n[^\n]*\bCA[ \t]+9\d{4})/m
 // "Redwood City, CA 94063-2342" (the comma is sometimes missing).
 const CITY = /\b([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){0,2}),?[ \t]+CA[ \t]+(9\d{4})/
 
@@ -29,9 +32,13 @@ export function aboutFromLetter(text: string): Partial<AboutYou> {
   if (name) about.name = name
   const after = name ? text.slice(text.indexOf(name)) : ''
   const street = STREET.exec(after)
-  const city = CITY.exec(after.slice(street ? street.index : 0))
-  if (street && city) {
-    about.street = street[0].trim()
+  const plain = PLAIN_STREET.exec(after)
+  // Whichever street comes first after the name.
+  const first = street && (!plain || street.index <= plain.index) ? street[0] : plain?.[1]
+  const at = first ? after.indexOf(first) : -1
+  const city = CITY.exec(after.slice(Math.max(at, 0)))
+  if (first && city) {
+    about.street = first.trim()
     about.city = city[1]
     about.zip = city[2]
   }

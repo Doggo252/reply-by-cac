@@ -2,9 +2,9 @@
 // "a request for more information", never codes like MC355.
 
 export const LETTER_NAMES: Record<string, string> = {
-  MC_239A: 'A notice that your Medi-Cal is being stopped',
-  MC355: 'A request for more information',
-  MC210_RV: 'Your yearly renewal form',
+  MC_239A: 'A letter saying your Medi-Cal will stop',
+  MC355: 'A letter asking for more papers',
+  MC210_RV: 'Your yearly renewal packet',
   OTHER: 'Not one of the letters this app handles',
 }
 export const plain = (type: string) => LETTER_NAMES[type] ?? type
@@ -27,9 +27,9 @@ export const savedOn = (isoTime: string) =>
 
 // What each fact is called on screen.
 export const FACT_LABELS: Record<string, string> = {
-  notice_date: 'Date printed on the letter',
+  notice_date: 'Date on the letter',
   effective_date: 'Date your Medi-Cal stops',
-  due_date: 'Date they need your reply by',
+  due_date: 'Date they need your answer by',
   ask: 'What the county is asking for',
   worker_name: "Your worker's name",
   worker_phone: "Your worker's phone number",

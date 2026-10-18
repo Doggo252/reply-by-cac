@@ -1,8 +1,7 @@
 // Which facts get a "please double-check" flag on the confirm screen.
 //
-// The rules are Neil's decision (2026-10-07). A fact is flagged when:
-//   - the user chose "keep everything on my phone" (every fact is flagged,
-//     since the phone's own reader is less accurate than the AI)
+// The rules are Neil's decision (2026-10-07, changed 2026-10-18). A fact is
+// flagged when:
 //   - it is empty
 //   - the AI said its certainty was "low" (every fact is flagged)
 //   - the photo was read with under 70% confidence (every fact is flagged)
@@ -37,28 +36,30 @@ export function flagsFor(input: FlagInput): Record<string, string> {
   const { facts } = input
 
   for (const field of input.fields) {
-    if (!facts[field]) flags[field] = 'We could not find this. Please type it from your letter.'
+    if (!facts[field]) flags[field] = "We couldn't find this. Please type it in from your letter."
   }
   if (facts.due_date && facts.notice_date && facts.due_date < facts.notice_date) {
-    flags.due_date = 'This is before the notice date. Please check both.'
-    flags.notice_date ??= 'This is after the due date. Please check both.'
+    flags.due_date = 'This is before the date on the letter. Please check both.'
+    flags.notice_date ??= 'This is after the answer-by date. Please check both.'
   }
   if (facts.effective_date && facts.notice_date && facts.effective_date < facts.notice_date) {
-    flags.effective_date = 'This is before the notice date. Please check both.'
-    flags.notice_date ??= 'This is after the date coverage stops. Please check both.'
+    flags.effective_date = 'This is before the date on the letter. Please check both.'
+    flags.notice_date ??= 'This is after the date your Medi-Cal stops. Please check both.'
   }
   if (facts.notice_date && facts.notice_date > input.today) {
-    flags.notice_date = 'This date is in the future. Please check it.'
+    flags.notice_date = "This date hasn't happened yet. Please check it."
   }
   if (facts.due_date && facts.notice_date && days(facts.notice_date, facts.due_date) > MAX_DAYS_TO_RESPOND) {
-    flags.due_date = 'This is a long time after the notice date. Please check it.'
+    flags.due_date = 'This is a long time after the date on the letter. Please check it.'
   }
   for (const field of input.repaired) {
     if (input.fields.includes(field)) flags[field] ??= 'This was hard to read. Please check it.'
   }
 
-  if (input.mode === 'phone') flagAll('Your phone read this by itself. Please check it.')
-  if (input.certainty === 'low') flagAll('We were not sure about this. Please check it.')
+  // Phone-only mode used to flag every fact. On Oct 18 Neil changed it to the
+  // same rules as AI mode, after a walkthrough showed six yellow boxes on a
+  // letter the phone had read perfectly.
+  if (input.certainty === 'low') flagAll("We're not sure about this one. Please check it.")
   if (input.photoConfidence < LOW_PHOTO_CONFIDENCE) flagAll('The photo was hard to read. Please check it.')
   return flags
 }

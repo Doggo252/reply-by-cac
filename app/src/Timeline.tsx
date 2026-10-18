@@ -116,11 +116,10 @@ export default function Timeline({ letter, onBack }: { letter: SavedLetter | nul
 
   return (
     <>
-      <h1 className="page-title">What happened</h1>
-      <p className="lead">Write down what you sent and what the county did. We check it for mistakes by the county.</p>
-      <button className="link" onClick={onBack}>
-        Back to my letter
-      </button>
+      <h1 className="page-title">What you've sent</h1>
+      <p className="lead">
+        Write down when you sent papers and what the county did after. If the county made a mistake, we'll tell you.
+      </p>
       {storageFailed && <p className="error">This phone is not letting the app save. Private browsing can cause this.</p>}
 
       {findings.map((finding) => (
@@ -129,10 +128,12 @@ export default function Timeline({ letter, onBack }: { letter: SavedLetter | nul
       {findings.length > 0 && letter && <WriteLetters letter={letter} findings={findings} events={events ?? []} />}
 
       <button className="button primary" onClick={() => setAdding(true)}>
-        + Add something that happened
+        + Write something down
       </button>
 
-      {events && events.length === 0 && <p className="hint">Nothing written down yet.</p>}
+      {events && events.length === 0 && (
+        <p className="hint">Nothing here yet. If you've already mailed or dropped off papers, write down the day you did.</p>
+      )}
       {events && events.length > 0 && (
         <ol className="events">
           {events.map((event) => {
@@ -313,7 +314,7 @@ function AddEvent({ papers, onPapersChanged, onCancel, onSave }: {
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder={kind === 'papers_sent' ? 'Like: mailed my bank statements' : ''}
+          placeholder={kind === 'papers_sent' ? 'For example: mailed my bank statements' : ''}
         />
       </label>
 

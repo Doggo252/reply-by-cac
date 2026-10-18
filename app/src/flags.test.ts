@@ -22,8 +22,9 @@ test('an empty fact is flagged', () => {
   expect(Object.keys(flagsFor({ ...base, facts: { ...base.facts, due_date: null } }))).toEqual(['due_date'])
 })
 
-test('phone-only mode flags every fact', () => {
-  expect(Object.keys(flagsFor({ ...base, mode: 'phone' })).sort()).toEqual([...base.fields].sort())
+test('phone-only mode flags only the unsure facts, like AI mode (Neil, Oct 18)', () => {
+  expect(flagsFor({ ...base, mode: 'phone' })).toEqual({})
+  expect(Object.keys(flagsFor({ ...base, mode: 'phone', facts: { ...base.facts, case_number: null } }))).toEqual(['case_number'])
 })
 
 test('low AI certainty flags every fact', () => {

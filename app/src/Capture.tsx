@@ -25,6 +25,7 @@ import { todayOnThisPhone } from './deadlines'
 import { loadMode, saveMode, type SavedLetter } from './storage'
 import { LETTER_NAMES, plain } from './words'
 import Confirm from './Confirm'
+import { usPhone } from './packet'
 
 const HANDLED = ['MC_239A', 'MC355', 'MC210_RV']
 
@@ -111,9 +112,8 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
   if (stage.name === 'idle' || stage.name === 'error') {
     return (
       <>
-        <h1 className="page-title">Read a letter</h1>
-        <span className="step">Step 1 of 3</span>
-        <p className="lead">Take a photo of the first page of your Medi-Cal letter.</p>
+        <h1 className="page-title">Take a photo of your letter</h1>
+        <p className="lead">Start with the first page of your Medi-Cal letter. We'll read it and tell you what to do.</p>
         {stage.name === 'error' && <p className="error">{stage.message}</p>}
         <label className="button primary">
           <CameraIcon />
@@ -130,13 +130,13 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
           </button>
         )}
         <div className="card">
-          <h2>Tips for a good photo</h2>
-          <p>Lay the letter flat on a table, in good light.</p>
-          <p>Fit the whole page in the picture.</p>
+          <h2>For a clear photo</h2>
+          <p>Lay the letter flat on a table, where there's good light.</p>
+          <p>Get the whole page in the picture.</p>
           <p>The photo stays on your phone.</p>
         </div>
         <p className="hint">
-          {mode === 'ai' ? 'Using AI help to read.' : 'Reading on your phone only.'}{' '}
+          {mode === 'ai' ? "We'll use AI to help read it." : "We'll read it on your phone only."}{' '}
           <button className="link" onClick={() => setMode(null)}>
             Change
           </button>
@@ -147,15 +147,14 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
 
   return (
     <>
-      <h1 className="page-title">{stage.name === 'reading' ? 'Reading your letter' : 'Check your letter'}</h1>
-      <span className="step">Step {stage.name === 'reading' ? 1 : 2} of 3</span>
+      <h1 className="page-title">{stage.name === 'reading' ? 'Reading your letter' : 'Check what we read'}</h1>
       {photoUrl && <img className="photo" src={photoUrl} alt="Your letter" />}
 
       {stage.name === 'reading' && (
         <div className="card" role="status">
-          <h2>{stage.almostDone ? 'Almost done…' : 'Reading the words…'}</h2>
+          <h2>{stage.almostDone ? 'Almost done…' : 'Reading your letter…'}</h2>
           <progress value={stage.progress} max={1} />
-          <p>This takes a few seconds. Please keep this screen open.</p>
+          <p>This takes a few seconds. Keep this screen open.</p>
         </div>
       )}
 
@@ -218,7 +217,7 @@ function AfterReading({ read, mode, onDone, onRetake }: {
     return (
       <div className="card">
         <h2>Which letter is this?</h2>
-        <p>We are not sure. Look at the title at the top of your letter. Which one matches?</p>
+        <p>We're not sure. Look at the title at the top of your letter. Which one is it?</p>
         {decision.choices.map((choice) => (
           <button key={choice} className="choice" onClick={() => setPicked(choice)}>
             <strong>{plain(choice)}</strong>
@@ -234,11 +233,11 @@ function AfterReading({ read, mode, onDone, onRetake }: {
   return (
     <>
       <div className="card">
-        <h2>This letter is</h2>
+        <h2>This is</h2>
         <p className="big-answer">{plain(picked)}</p>
         {decision.status === 'agree' && (
           <p className="checked-twice">
-            <CheckIcon /> We checked it two different ways. Both agree.
+            <CheckIcon /> We checked it two ways, and both agree.
           </p>
         )}
       </div>
@@ -312,7 +311,15 @@ function CheckFacts({ read, mode, letterType, onConfirm }: {
   for (const field of fields) {
     const fromAi = field === 'case_number' ? null : read.aiFacts?.[field]
     const fromPhone = (local.facts as Record<string, string | null>)[field] ?? null
-    if (typeof fromAi === 'string' && fromAi) {
+    // On a stopped letter, the phone finds the exact reason sentence ("You did
+    // not send..."), which lists the missing papers. The AI sometimes picks a
+    // different sentence, so the phone's wins for "what the county is asking for".
+    // An AI answer with a blanked word in it ("Fatima [name]", when the worker
+    // shares the person's last name) is not used; the phone read the real text.
+    const blanked = typeof fromAi === 'string' && /\[\w+\]/.test(fromAi)
+    if (field === 'ask' && letterType === 'MC_239A' && fromPhone) {
+      facts[field] = fromPhone
+    } else if (typeof fromAi === 'string' && fromAi && !blanked) {
       facts[field] = fromAi
     } else {
       facts[field] = fromPhone
@@ -320,6 +327,8 @@ function CheckFacts({ read, mode, letterType, onConfirm }: {
       if (mode === 'ai' && fromPhone && field !== 'case_number') repaired.push(field)
     }
   }
+  // "6509211395" becomes "(650) 921-1395", the way people write it.
+  if (facts.worker_phone) facts.worker_phone = usPhone(facts.worker_phone)
   const flags = flagsFor({
     fields,
     facts,
@@ -336,19 +345,20 @@ function CheckFacts({ read, mode, letterType, onConfirm }: {
 function ModeChoice({ onChoose }: { onChoose: (mode: ReadingMode) => void }) {
   return (
     <>
-      <h1 className="page-title">Before we start</h1>
-      <p className="lead">How should we read your letter? You can change this later.</p>
+      <h1 className="page-title">Hi! We'll help you answer your Medi-Cal letter.</h1>
+      <p className="lead">First, how would you like us to read it? You can change this later.</p>
       <button className="choice" onClick={() => onChoose('ai')}>
-        <strong>Use AI to help read it</strong>
+        <strong>Read it with AI (most accurate)</strong>
         <span>
-          More accurate, and it explains the letter in plain words. Your name, address and case number are
-          hidden before anything is sent.
+          AI reads the letter and can explain it in plain words. We hide your name, address and case number before
+          anything is sent.
         </span>
       </button>
       <button className="choice" onClick={() => onChoose('phone')}>
-        <strong>Keep everything on my phone</strong>
-        <span>Nothing leaves your phone. You will need to check every detail yourself.</span>
+        <strong>Read it on my phone only (most private)</strong>
+        <span>Your letter never leaves your phone. You may need to fix a few things it reads wrong.</span>
       </button>
+      <p className="hint">Either way, we walk you through every step.</p>
     </>
   )
 }
@@ -357,7 +367,7 @@ function NotHandled({ retake }: { retake: React.ReactNode }) {
   return (
     <div className="card">
       <h2>Sorry, we can't help with this letter yet</h2>
-      <p>This app works with three Medi-Cal letters:</p>
+      <p>Right now we can help with three Medi-Cal letters:</p>
       <p>
         {LETTER_NAMES.MC210_RV}, {LETTER_NAMES.MC355.toLowerCase()}, and{' '}
         {LETTER_NAMES.MC_239A.toLowerCase()}.

@@ -47,8 +47,12 @@ def redact(text):
             # Something an earlier rule already blanked is not counted twice.
             if not BLANK.fullmatch(value):
                 counts[kind] += 1
-                if remember:
-                    found.append((value, kind))
+                # A value after a name label is blanked here either way, but
+                # only remembered (and blanked everywhere, word by word) if it
+                # looks like a name. Otherwise a misread line of ordinary words
+                # ("the", "not", "your") or a date would vanish all over the page.
+                if remember and (kind != "name" or looks_like_a_name(value)):
+                    found.append((strip_junk(value) if kind == "name" else value, kind))
             return keep + blank
         text = pattern.sub(swap, text)
 
@@ -130,6 +134,11 @@ def strip_junk(line):
 def has_form_words(line):
     words = re.split(r"[^a-z]+", line.lower())
     return any(word in FORM_WORDS for word in words)
+
+
+def looks_like_a_name(value):
+    line = strip_junk(value)
+    return bool(LOOKS_LIKE_NAME.fullmatch(line)) and not has_form_words(line)
 # "Maria Garcia   05/23/1950" at the end of a line (no colon, so it is not a
 # label like "Notice date:").
 NAME_THEN_BIRTHDAY = re.compile(r"^(?P<name>[A-Za-z][A-Za-z.' -]{2,}?)\s+(?P<date>\d{1,2}/\d{1,2}/\d{4})\s*$", re.M)

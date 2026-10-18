@@ -4,7 +4,7 @@
 // deadlines and letters must always come from fresh data, not a stale copy.
 //
 // Bump CACHE_NAME whenever the app's files change, so old copies get thrown out.
-const CACHE_NAME = 'replyby-v2'
+const CACHE_NAME = 'replyby-v3'
 
 // Cache the shell on install: the page itself, the icons, and the two
 // official forms, so the reply packet can be made with no internet.

@@ -107,6 +107,11 @@ function hasFormWords(line: string): boolean {
   return line.toLowerCase().split(/[^a-z]+/).some((word) => FORM_WORDS.has(word))
 }
 
+function looksLikeAName(value: string): boolean {
+  const line = stripJunk(value)
+  return LOOKS_LIKE_NAME.test(line) && !hasFormWords(line)
+}
+
 function escapeForRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -128,7 +133,13 @@ export function redact(input: string, alsoBlank: string[] = []): Redacted {
       // Something an earlier rule already blanked is not counted twice.
       if (!BLANK.test(value)) {
         counts[rule.kind] += 1
-        if (rule.remember) found.push([value, rule.kind])
+        // A value after a name label is blanked here either way, but only
+        // remembered (and blanked everywhere, word by word) if it looks like a
+        // name. Otherwise a misread line of ordinary words ("the", "not",
+        // "your") or a date would vanish all over the page.
+        if (rule.remember && (rule.kind !== 'name' || looksLikeAName(value))) {
+          found.push([rule.kind === 'name' ? stripJunk(value) : value, rule.kind])
+        }
       }
       return keep + rule.blank
     })

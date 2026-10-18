@@ -20,7 +20,8 @@ export const MAIN_DEADLINE: Record<string, string> = {
 
 export type Job = {
   headline: string // what happened
-  detail: string | null // what the county said, if we have it
+  listTitle: string // the words above the list of papers
+  toSend: string[] // the papers to send (whatToSend below)
   task: string // what to do, with the date
   why: string // what happens when they do it
   button: string
@@ -35,21 +36,24 @@ export function jobFor(letterType: string, facts: Record<string, string | null>,
   const deadline = byId(MAIN_DEADLINE[letterType])
   const by = deadline?.date ? ` by ${inWords(deadline.date)}` : ''
   const passed = deadline?.status === 'passed'
+  const toSend = whatToSend(letterType, facts.ask ?? null)
+  const them = toSend.length === 1 ? 'it' : 'them'
 
   if (letterType === 'MC_239A') {
     const stop = facts.effective_date
     return {
       headline: !stop
-        ? 'Your Medi-Cal is being stopped'
+        ? 'Your Medi-Cal is going to stop'
         : stop <= today
           ? `Your Medi-Cal stopped on ${inWords(stop, false)}`
           : `Your Medi-Cal will stop on ${inWords(stop, false)}`,
-      detail: facts.ask ? `Why: ${facts.ask}` : null,
-      task: passed ? 'The 90 days to send your papers have passed' : `Send the missing papers${by}`,
+      listTitle: 'The county says they never got:',
+      toSend,
+      task: passed ? 'The 90 days to send them are over' : `Send ${them}${by}`,
       why: passed
-        ? 'You may need to apply again. Call your county worker to ask.'
-        : 'Your Medi-Cal comes back. You do not need to apply again.',
-      button: 'Get my papers ready',
+        ? 'Call your county worker. You may need to apply again.'
+        : 'Then your Medi-Cal comes back, and you won\'t have to apply again.',
+      button: 'Help me send my papers',
       deadline,
       hearing: { lastDay: byId('hearing_request'), keepsCoverage: byId('hearing_coverage') },
     }
@@ -57,29 +61,78 @@ export function jobFor(letterType: string, facts: Record<string, string | null>,
 
   if (letterType === 'MC355') {
     return {
-      headline: 'The county needs papers from you',
-      detail: facts.ask ? `They asked for: ${facts.ask}` : null,
-      task: passed ? 'The date to send the papers has passed' : `Send the papers${by}`,
+      headline: 'The county needs some papers from you',
+      listTitle: 'They asked for:',
+      toSend,
+      task: passed ? 'The date to send them has passed' : `Send ${them}${by}`,
       why: passed
-        ? 'Send them anyway, as soon as you can, and call your county worker.'
-        : 'If you do not, your Medi-Cal may stop.',
-      button: 'Get my papers ready',
+        ? 'Send them as soon as you can, and call your county worker.'
+        : 'If they don\'t get them, your Medi-Cal could stop.',
+      button: 'Help me send my papers',
       deadline,
       hearing: null,
     }
   }
 
   return {
-    headline: 'It is time to renew your Medi-Cal',
-    detail: 'Fill in the paper form that came with this letter.',
-    task: passed ? 'The date to send your form has passed' : `Send your renewal form back${by}`,
+    headline: 'It\'s time to renew your Medi-Cal',
+    listTitle: 'You\'ll need to send back:',
+    toSend,
+    task: passed ? 'The date to send it back has passed' : `Mail it back${by}`,
     why: passed
-      ? 'Send it anyway, as soon as you can, and call your county worker.'
-      : 'If you do not, your Medi-Cal may stop. We show you which pages to fill in.',
-    button: 'Help me fill it in',
+      ? 'Send it as soon as you can, and call your county worker.'
+      : 'If you don\'t, your Medi-Cal could stop. We\'ll show you which pages to fill in.',
+    button: 'Help me with my renewal',
     deadline,
     hearing: null,
   }
+}
+
+// The papers the person needs to send, as a plain list, worked out from what
+// the county asked for ("ask" on the confirm screen). When the letter does not
+// say clearly, the list points the person back to their letter.
+export function whatToSend(letterType: string, ask: string | null): string[] {
+  const text = (ask ?? '').replace(/\s+/g, ' ').trim()
+  const tidy = (item: string) => {
+    const clean = item.trim().replace(/^and\s+/i, '').replace(/[.;,]+$/, '')
+    return clean.charAt(0).toUpperCase() + clean.slice(1)
+  }
+  const list = (items: string) => items.split(/;|,(?![^(]*\))/).map(tidy).filter((item) => item.length > 2)
+
+  if (letterType === 'MC210_RV') {
+    return [
+      'Your renewal form (MC 210 RV), filled in and signed',
+      'The property form that came with it, filled in',
+      'Proof for the form, like a Social Security letter or a bank statement',
+    ]
+  }
+
+  if (letterType === 'MC355') {
+    const named = /asked for\s*:?\s*(.+)/i.exec(text)
+    if (named && !/checked box/i.test(text)) return list(named[1])
+    return ['Each paper with a checked box on the other pages of your letter']
+  }
+
+  // A notice that Medi-Cal is stopping.
+  if (/renewal form|mc ?210/i.test(text)) return ['Your renewal form (MC 210 RV), filled in and signed']
+  const property = /property[^:]*:\s*(.+)/i.exec(text)
+  if (property) {
+    // "real estate" is often split over two lines, so only "real" is read.
+    return list(property[1]).map((item) => `Papers about your property: ${item.toLowerCase().replace(/^real$/, 'real estate')}`)
+  }
+  const asked = /asked for\s*:\s*(.+)/i.exec(text)
+  if (asked) return list(asked[1])
+  return ['The papers your letter says are missing']
+}
+
+// Advice about getting it there in time. Mail can take a week, and county
+// offices are closed on weekends.
+export function timing(deadline: Deadline | null): { soon: boolean; weekendFriday: string | null } {
+  if (!deadline?.date || deadline.daysLeft === null || deadline.daysLeft < 0) return { soon: false, weekendFriday: null }
+  const day = new Date(`${deadline.date}T00:00:00Z`).getUTCDay() // 0 Sunday, 6 Saturday
+  const back = day === 6 ? 1 : day === 0 ? 2 : 0
+  const friday = back ? new Date(Date.parse(`${deadline.date}T00:00:00Z`) - back * 86_400_000).toISOString().slice(0, 10) : null
+  return { soon: deadline.daysLeft <= 7, weekendFriday: friday }
 }
 
 // "74 days left", "Today is the last day", or "" when there is no date.

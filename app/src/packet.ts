@@ -35,6 +35,8 @@ export type PacketInput = {
   today: string // YYYY-MM-DD
   hearing: { reason: string } | null // MC 239 A: ask for a hearing
   undoLetter: string | null // MC 239 A: the letter asking to undo the stop
+  toSend?: string[] // what the county asked for, as a checklist on the cover sheet
+  statements?: string[] // "I do not have life insurance." and the like, for the cover letter
   attachments: Attachment[]
   signature: Uint8Array | null // PNG of the signature
   forms: { hearingRequest?: Uint8Array; renewalSignaturePage?: Uint8Array }
@@ -198,6 +200,20 @@ async function attachmentPages(packet: PDFDocument, file: Attachment, fonts: Fon
   }
 }
 
+// A few plain sentences to the county at the top of the cover sheet, in the
+// person's own voice, saying what this envelope is.
+export function coverNote(letterType: string, noticeDate: string | undefined): string {
+  const letter = noticeDate ? `your letter dated ${noticeDate}` : 'your letter'
+  if (letterType === 'MC_239A') {
+    return (
+      `I am sending the information you asked for in ${letter}. The law gives me 90 days to send it ` +
+      '(W&IC 14005.37). Please restore my Medi-Cal back to the date it stopped, without a new application.'
+    )
+  }
+  if (letterType === 'MC355') return `I am sending the information you asked for in ${letter}.`
+  return `I am sending my Medi-Cal renewal, as asked in ${letter}. My signed page and my proof are included.`
+}
+
 // What each letter type's packet is called, for the cover sheet.
 const PACKET_TITLES: Record<string, string> = {
   MC_239A: 'Response to Notice of Action (Medi-Cal discontinuance)',
@@ -289,7 +305,26 @@ export async function buildPacket(input: PacketInput, mismatches: Mismatch[], fi
     ...(f.worker_name || f.worker_phone ? [`Worker: ${[f.worker_name, f.worker_phone].filter(Boolean).join(', ')}`] : []),
     `Sent: ${usDate(input.today)}`,
   ]
-  let y = writePage(cover, fonts, PACKET_TITLES[input.letterType] ?? 'Medi-Cal response', lines)
+  let y = writePage(cover, fonts, PACKET_TITLES[input.letterType] ?? 'Medi-Cal response', [
+    ...lines,
+    [coverNote(input.letterType, f.notice_date), ...(input.statements ?? [])].join(' '),
+  ])
+
+  // The papers the county asked for, with a box to tick for each one put in
+  // the envelope (photos are attached; paper copies can go in by hand).
+  if (input.toSend?.length) {
+    cover.drawText('The papers you asked for (tick each one included)', { x: MARGIN, y: y - 6, size: 13, font: fonts.bold, color: INK })
+    y -= 28
+    for (const item of input.toSend) {
+      for (const [i, line] of wrap(item, fonts.regular, 11, LETTER[0] - 2 * MARGIN - 24).entries()) {
+        if (i === 0) cover.drawText('[  ]', { x: MARGIN, y, size: 11, font: fonts.regular, color: INK })
+        cover.drawText(line, { x: MARGIN + 24, y, size: 11, font: fonts.regular, color: INK })
+        y -= 15
+      }
+    }
+    y -= 10
+  }
+
   cover.drawText('What is in this packet', { x: MARGIN, y: y - 6, size: 13, font: fonts.bold, color: INK })
   y -= 28
   let pageNumber = 2
@@ -303,7 +338,8 @@ export async function buildPacket(input: PacketInput, mismatches: Mismatch[], fi
     cover.drawText(pages, { x: LETTER[0] - MARGIN - 70, y, size: 11, font: fonts.regular, color: INK })
     y -= 16
   }
-  cover.drawText(`Total: ${pageNumber - 1} pages`, { x: MARGIN, y: y - 6, size: 11, font: fonts.bold, color: INK })
+  const total = pageNumber - 1
+  cover.drawText(`Total: ${total} ${total === 1 ? 'page' : 'pages'}`, { x: MARGIN, y: y - 6, size: 11, font: fonts.bold, color: INK })
   // When no form in the packet has a place to sign, the cover sheet does.
   if (!signedAPage) {
     cover.drawText('Signature:', { x: MARGIN, y: y - 50, size: 11, font: fonts.regular, color: INK })
