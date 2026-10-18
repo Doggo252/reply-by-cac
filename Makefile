@@ -8,7 +8,7 @@
 
 PY := .venv/bin/python
 
-.PHONY: setup test-py test-js test dev-app dev-backend
+.PHONY: setup test-py test-js test dev-app dev-backend serve
 
 setup:
 	python3 -m venv .venv
@@ -30,3 +30,9 @@ dev-app:
 
 dev-backend:
 	.venv/bin/uvicorn backend.main:app --reload
+
+# The online version on this computer: the built app and the backend at one
+# address, the same way Render runs it (see Dockerfile).
+serve:
+	npm --prefix app run build
+	.venv/bin/uvicorn backend.serve:site --port 8000

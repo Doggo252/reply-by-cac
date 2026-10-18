@@ -1,0 +1,14 @@
+# Render reads this to set up the app. A parent makes the Render account,
+# then adds GEMINI_API_KEY in the service's Environment settings.
+services:
+  - type: web
+    name: replyby
+    runtime: docker
+    plan: free
+    branch: main-usmsdg
+    healthCheckPath: /api/health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false # typed in on Render's site, never stored here
+      - key: MAX_AI_CALLS_PER_DAY
+        value: "300"

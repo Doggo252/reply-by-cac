@@ -10,6 +10,7 @@ the project's list of add-ons short.
 
 import json
 import os
+from datetime import date
 
 import httpx
 
@@ -24,13 +25,31 @@ THINKING = {"thinkingLevel": "low"}
 URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
 
 
+# Once the app is online, anyone with the address could make it call the AI.
+# This caps the calls per day so the credit cannot be used up in one go.
+# Set MAX_AI_CALLS_PER_DAY in the server's settings to change it.
+MAX_CALLS_PER_DAY = int(os.getenv("MAX_AI_CALLS_PER_DAY", "300"))
+_today = {"day": None, "calls": 0}
+
+
 class LLMError(Exception):
     """Something went wrong talking to the model. The app shows a friendly
     message and carries on with Reader B alone."""
 
 
+def count_call(day=None):
+    """Counts one call to the model, and refuses once today's cap is reached."""
+    day = day or date.today().isoformat()
+    if _today["day"] != day:
+        _today["day"], _today["calls"] = day, 0
+    if _today["calls"] >= MAX_CALLS_PER_DAY:
+        raise LLMError("the app reached its AI limit for today")
+    _today["calls"] += 1
+
+
 def ask_for_json(prompt):
     """Sends the prompt and returns the model's answer as a Python dict."""
+    count_call()
     key = os.getenv("GEMINI_API_KEY")
     if not key:
         raise LLMError("GEMINI_API_KEY is not set in backend/.env")
@@ -55,6 +74,7 @@ def ask_for_json(prompt):
 def ask_with_tools(instructions, contents, tools):
     """For the AI helper: sends the conversation and the tool list, and returns
     the parts of the model's answer (text and tool calls)."""
+    count_call()
     key = os.getenv("GEMINI_API_KEY")
     if not key:
         raise LLMError("GEMINI_API_KEY is not set in backend/.env")

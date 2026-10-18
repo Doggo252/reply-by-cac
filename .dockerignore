@@ -1,0 +1,7 @@
+# Never copied into the online server.
+**/node_modules
+.venv
+**/.env
+data
+**/__pycache__
+.git
