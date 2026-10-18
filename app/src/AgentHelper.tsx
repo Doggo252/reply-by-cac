@@ -67,6 +67,7 @@ export default function AgentHelper({ letter, onBack, onManual }: {
     return (
       <AboutForm
         about={about}
+        letterText={letter.text}
         onBack={onBack}
         onSave={(next) => {
           saveAbout(next)

@@ -10,6 +10,7 @@
 // agent/TOOLS.md.
 import { useEffect, useState } from 'react'
 import { check, type Mismatch } from './checker'
+import { aboutFromLetter } from './aboutFromLetter'
 import { buildPacket, paperFactsFrom, type AboutYou, type Attachment, type PacketInput, type PaperFacts } from './packet'
 import { addEvent, addPaper, listPapers, loadAbout, loadDrafts, saveAbout, type Paper, type SavedLetter } from './storage'
 import { todayOnThisPhone } from './deadlines'
@@ -110,6 +111,7 @@ export default function ReplyPacket({ letter, onBack }: { letter: SavedLetter; o
     return (
       <AboutForm
         about={about}
+        letterText={letter.text}
         onBack={onBack}
         onSave={(next) => {
           saveAbout(next)
@@ -347,9 +349,16 @@ export function Done({ paper, onBack }: { paper: Paper; onBack: () => void }) {
   )
 }
 
-export function AboutForm({ about, onSave, onBack }: { about: AboutYou | null; onSave: (about: AboutYou) => void; onBack: () => void }) {
+export function AboutForm({ about, letterText, onSave, onBack }: {
+  about: AboutYou | null
+  letterText?: string // the first time, the form is filled in from the letter
+  onSave: (about: AboutYou) => void
+  onBack: () => void
+}) {
+  // A first guess from the letter, read on the phone with no AI.
+  const [guessed] = useState(() => (about ? {} : aboutFromLetter(letterText ?? '')))
   const [form, setForm] = useState<AboutYou>(
-    about ?? { name: '', phone: '', street: '', city: '', zip: '', county: 'Santa Clara' }
+    about ?? { name: '', phone: '', street: '', city: '', zip: '', county: 'Santa Clara', ...guessed }
   )
   const field = (key: keyof AboutYou, label: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <label className="field">
@@ -366,6 +375,11 @@ export function AboutForm({ about, onSave, onBack }: { about: AboutYou | null; o
     >
       <h1 className="page-title">About you</h1>
       <p className="lead">For the forms. This stays on your phone and is never sent to the AI.</p>
+      {Object.keys(guessed).length > 0 && (
+        <p className="hint">
+          We filled this in from your letter. Please check your address. If you moved, type your new one.
+        </p>
+      )}
       {field('name', 'Your full name', { autoComplete: 'name' })}
       {field('phone', 'Your phone number', { inputMode: 'tel', autoComplete: 'tel' })}
       {field('street', 'Street address', { autoComplete: 'street-address' })}
