@@ -32,7 +32,7 @@ as the hard deadline.
 | Sep 27: photo returns facts, both readers | Done on time |
 | Oct 4: photo to countdowns | Done Oct 7, 3 days late, then caught up |
 | Oct 11: full flow (forms, checker, timeline, vault) | Done |
-| Oct 18: AI helper, dashboard, airplane test, user testing | AI helper and dashboard done; airplane test and Mom's test left |
+| Oct 18: AI helper, dashboard, airplane test, user testing | Done, except Mom's test (moved to Tue 10/20) |
 
 **Done and working:** camera and text reading on the phone; Neil's classifier
 (98.4%, and 99.8% on photos); the AI reader; the must-agree rule; redaction;
@@ -136,9 +136,10 @@ low. Only one more full test run, near submission.**
   - [x] [N] Review and commit everything.
   - [x] [N] Phone check: "Read it to me" talks; the calendar file opens Calendar.
   - [x] [N] One real AI helper run after the review screen changed.
-  - [ ] [N + Parent] Put the app on Render (steps from Claude, 10/18).
-        `render.yaml` now points at `main`.
-  - [ ] [N] Airplane-mode test on the Render address (steps from Claude, 10/18).
+  - [x] [N] Put the app on Render (10/18). It is live, and every
+        push to `main` redeploys it.
+  - [x] [N] Airplane-mode test on the Render address: everything worked
+        (10/18, screen-recorded).
   - [x] [N] Video script: drafted 10/18, Neil is editing it in his Claude doc.
   - [x] Rough cut: skipped (Neil's choice).
   - [ ] [N] Mom's test: moved to Tue 10/20.
@@ -176,8 +177,8 @@ low. Only one more full test run, near submission.**
 - **One lost Saturday costs a week of authored work.**
 - **Recording and editing get 2 hours each (Thu, Fri), with no rough cut.**
   Sunday is the only backup.
-- **The airplane-mode test has not been run yet.** It needs the Render
-  address, since offline mode only works over https.
+- **Render's free plan sleeps after about 15 minutes.** Open the site a minute
+  before recording and before submitting.
 - **Reader A misses dates** (notice date only 68%). The confirm screen
   catches it, but the user has to type them. No prompt rework before
   submission.
