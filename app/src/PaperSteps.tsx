@@ -39,9 +39,11 @@ export default function PaperSteps(props: {
   onPapersChanged: (papers: Paper[]) => void
   renewalPart: number | 'ask' | 'done' // where the renewal walk-through is
   onRenewalPart: (part: number | 'ask' | 'done') => void
+  step?: string // "Step 1 of 4" in the step-by-step reply; none with the AI helper
   children: React.ReactNode
 }) {
   const { letterType, items, answers, onAnswer, papers, chosen, onChosen } = props
+  const step = props.step ? <span className="step">{props.step}</span> : null
   const [cantFind, setCantFind] = useState(false)
   const [picked, setPicked] = useState<string[]>([])
 
@@ -49,7 +51,7 @@ export default function PaperSteps(props: {
   if (items === null) {
     return (
       <>
-        <span className="step">Step 1 of 4</span>
+        {step}
         <h1 className="page-title">Which boxes are checked?</h1>
         <p className="lead">
           Turn to page 2 of your letter. The county put a check mark next to each thing they need. Tap the same ones
@@ -79,7 +81,7 @@ export default function PaperSteps(props: {
     if (props.renewalPart === 'ask') {
       return (
         <>
-          <span className="step">Step 1 of 4</span>
+          {step}
           <h1 className="page-title">Do you want help filling in your renewal form?</h1>
           <p className="lead">
             We'll go through the paper form with you, one part at a time. Have it in front of you, with a pen.
@@ -214,7 +216,7 @@ export default function PaperSteps(props: {
   // 4. Every paper has an answer: show them all, with a way to change each.
   return (
     <>
-      <span className="step">Step 1 of 4</span>
+      {step}
       <h1 className="page-title">Here are your papers</h1>
       <ul className="paper-list">
         {letterType === 'MC210_RV' && (

@@ -1,7 +1,9 @@
 // Builds the reply packet: one PDF the person prints, mails, faxes, or brings
 // to the county office.
 //
-//   page 1   cover sheet: who, case number, the letter, and a page list
+//   page 1   a cover letter, like one a person would write: their address,
+//            the date, the county, what it is about, a few plain sentences,
+//            what is included, their signature, and a list of the pages
 //   then     the filled forms for this letter
 //            (hearing request on the official NA Back 9, the letter asking
 //            the county to undo the stop, or the MC 210 RV signature page)
@@ -35,8 +37,9 @@ export type PacketInput = {
   today: string // YYYY-MM-DD
   hearing: { reason: string } | null // MC 239 A: ask for a hearing
   undoLetter: string | null // MC 239 A: the letter asking to undo the stop
-  toSend?: string[] // what the county asked for, as a checklist on the cover sheet
+  toSend?: string[] // the papers going in the envelope, listed in the cover letter
   statements?: string[] // "I do not have life insurance." and the like, for the cover letter
+  later?: string[] // papers the person will send when they find them
   attachments: Attachment[]
   signature: Uint8Array | null // PNG of the signature
   forms: { hearingRequest?: Uint8Array; renewalSignaturePage?: Uint8Array }
@@ -200,21 +203,183 @@ async function attachmentPages(packet: PDFDocument, file: Attachment, fonts: Fon
   }
 }
 
-// A few plain sentences to the county at the top of the cover sheet, in the
-// person's own voice, saying what this envelope is.
-export function coverNote(letterType: string, noticeDate: string | undefined): string {
-  const letter = noticeDate ? `your letter dated ${noticeDate}` : 'your letter'
-  if (letterType === 'MC_239A') {
-    return (
-      `I am sending the information you asked for in ${letter}. The law gives me 90 days to send it ` +
-      '(W&IC 14005.37). Please restore my Medi-Cal back to the date it stopped, without a new application.'
-    )
-  }
-  if (letterType === 'MC355') return `I am sending the information you asked for in ${letter}.`
-  return `I am sending my Medi-Cal renewal, as asked in ${letter}. My signed page and my proof are included.`
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+// "10/01/2026" or "2026-10-01" becomes "2026-10-01". Anything else stays as it is.
+function isoDate(value: string | undefined): string {
+  const us = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value ?? '')
+  return us ? `${us[3]}-${us[1]}-${us[2]}` : (value ?? '')
 }
 
-// What each letter type's packet is called, for the cover sheet.
+// "10/01/2026" or "2026-10-01" becomes "October 1, 2026", the way a letter writes it.
+export function longDate(value: string | undefined): string {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate(value))
+  if (!iso) return value ?? ''
+  return `${MONTHS[Number(iso[2]) - 1]} ${Number(iso[3])}, ${iso[1]}`
+}
+
+// The papers lists talk to the person ("Your newest bank statement"). The
+// letter is from them, so it says "My newest bank statement". ("Your letter"
+// stays: that is the county's letter.)
+export function inMyWords(item: string): string {
+  return item
+    .replace(/\bYour\b(?! letter)/g, 'My')
+    .replace(/\byour\b(?! letter)/g, 'my')
+    .replace(/\byou\b/g, 'I')
+}
+
+// "a", "a and b", "a, b and c".
+const joinAnd = (items: string[]) =>
+  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+
+export type CoverLetter = {
+  from: string[] // the person's name and address, at the top
+  date: string
+  to: string[]
+  re: string // what the letter is about
+  greeting: string
+  paragraphs: string[]
+  list: string[] // what is in the envelope, after "I am including:"
+  after: string[] // the paragraphs after the list
+  closing: string
+  name: string // under the signature
+}
+
+export type CoverLetterInput = Pick<PacketInput, 'letterType' | 'about' | 'facts' | 'today' | 'toSend' | 'statements' | 'later'> & {
+  hearing: boolean // a hearing request is in the envelope
+  undoLetter: boolean // the letter asking to restore Medi-Cal is in the envelope
+}
+
+// The words of the cover letter, from the person, in plain English. The same
+// words show on "Look over your reply" (ReplyPreview.tsx), so the person reads
+// exactly what will be printed.
+export function coverLetter(input: CoverLetterInput): CoverLetter {
+  const { about, facts: f } = input
+  const notice = longDate(f.notice_date)
+  const dated = notice ? ` dated ${notice}` : ''
+
+  const paragraphs: string[] = []
+  if (input.letterType === 'MC_239A') {
+    const stop = longDate(f.effective_date)
+    const when = !f.effective_date ? 'is stopping' : isoDate(f.effective_date) <= input.today ? `stopped on ${stop}` : `will stop on ${stop}`
+    paragraphs.push(
+      `I got your letter${dated}. It says my Medi-Cal ${when} because you did not get some information from me. ` +
+        'I am sending that information with this letter.',
+      'The law gives me 90 days to send it (W&IC 14005.37). Please restore my Medi-Cal back to the date it stopped, ' +
+        'without a new application.',
+    )
+  } else if (input.letterType === 'MC355') {
+    paragraphs.push(`I got your Request for Information${dated}. I am sending the papers you asked for with this letter.`)
+  } else if (input.letterType === 'MC210_RV') {
+    paragraphs.push(`I got my Medi-Cal renewal packet${notice ? ` with your letter${dated}` : ''}. I am sending back my renewal form with this letter.`)
+  } else {
+    paragraphs.push(`I am writing about your letter${dated}.`)
+  }
+
+  const list = [
+    ...(input.toSend ?? []).map(inMyWords),
+    ...(input.undoLetter ? ['A letter asking you to restore my Medi-Cal'] : []),
+    ...(input.hearing ? ['A request for a state hearing'] : []),
+  ]
+
+  const after: string[] = []
+  if (input.statements?.length) after.push(input.statements.join(' '))
+  if (input.later?.length) {
+    // "Retirement account statement" reads as "my retirement account statement".
+    const items = input.later
+      .map((item) => inMyWords(item).replace(/^./, (c) => c.toLowerCase()))
+      .map((item) => (/^(my|a|an|the|proof|papers|each|any|statements)\b/.test(item) ? item : `my ${item}`))
+    after.push(`I am still looking for ${joinAnd(items)}. I will send ${items.length === 1 ? 'it' : 'them'} as soon as I can.`)
+  }
+  const phone = usPhone(about.phone)
+  after.push(phone ? `If you need anything else, please call me at ${phone}. Thank you for your help.` : 'Thank you for your help.')
+
+  const subject = [f.case_number && `case number ${f.case_number}`, notice && `your letter dated ${notice}`].filter(Boolean).join(', ')
+  return {
+    from: [about.name, about.street, `${about.city}, CA ${about.zip}`, ...(phone ? [phone] : [])],
+    date: longDate(input.today),
+    to: [`${about.county} County Medi-Cal`, ...(f.worker_name ? [`Attn: ${f.worker_name}`] : [])],
+    re: subject ? `Re: ${subject.charAt(0).toUpperCase()}${subject.slice(1)}` : 'Re: My Medi-Cal',
+    greeting: f.worker_name ? `Dear ${f.worker_name},` : 'Dear Medi-Cal worker,',
+    paragraphs,
+    list,
+    after,
+    closing: 'Sincerely,',
+    name: about.name,
+  }
+}
+
+// A drafted letter may already start with "Dear ..." or end with
+// "Sincerely, ...". Our letter adds those itself, so they are taken off.
+export function bodyOnly(text: string): string {
+  const lines = text.trim().split('\n')
+  if (/^dear\b/i.test(lines[0] ?? '')) lines.shift()
+  const end = lines.findIndex((line) => /^(sincerely|respectfully|regards|best regards)\b/i.test(line.trim()))
+  return (end >= 0 ? lines.slice(0, end) : lines).join('\n').trim()
+}
+
+// One piece of a letter, before it is put on a page.
+type Block = { text: string; bold?: boolean; size?: number; gap?: number; bullet?: boolean } | { signature: true; gap?: number }
+
+const SIGNATURE_HEIGHT = 40
+
+// Puts the blocks on pages, top to bottom, starting a new page when one is
+// full. Returns where each line goes (page, x, y), and how many pages it took.
+function placeBlocks(blocks: Block[], fonts: Fonts) {
+  const top = LETTER[1] - MARGIN
+  const bottom = MARGIN + 20 // room for the page footer
+  const width = LETTER[0] - 2 * MARGIN
+  const placed: { page: number; x: number; y: number; text?: string; font?: PDFFont; size?: number }[] = []
+  let page = 0
+  let y = top
+  const room = (height: number) => {
+    if (y - height < bottom) {
+      page++
+      y = top
+    }
+  }
+  for (const block of blocks) {
+    if (y < top) y -= block.gap ?? 0 // no extra space at the top of a page
+    if ('signature' in block) {
+      room(SIGNATURE_HEIGHT)
+      y -= SIGNATURE_HEIGHT
+      placed.push({ page, x: MARGIN, y })
+      continue
+    }
+    const size = block.size ?? 11
+    const font = block.bold ? fonts.bold : fonts.regular
+    const indent = block.bullet ? 18 : 0
+    wrap(block.text, font, size, width - indent).forEach((line, i) => {
+      room(size * 1.4)
+      y -= size * 1.4
+      if (block.bullet && i === 0) placed.push({ page, x: MARGIN + 4, y, text: '•', font: fonts.regular, size })
+      placed.push({ page, x: MARGIN + indent, y, text: line, font, size })
+    })
+  }
+  return { placed, pages: page + 1 }
+}
+
+// Draws placed blocks onto pages. A line with no text is the signature.
+function drawPlaced(pages: PDFPage[], placed: ReturnType<typeof placeBlocks>['placed'], sign: (page: PDFPage, x: number, y: number) => void) {
+  for (const p of placed) {
+    if (p.text === undefined) sign(pages[p.page], p.x, p.y)
+    else pages[p.page].drawText(p.text, { x: p.x, y: p.y, size: p.size, font: p.font, color: INK })
+  }
+}
+
+// The top of any letter from the person: their address, the date, who it is
+// to, and what it is about.
+function letterTop(from: string[], date: string, to: string[], re: string, greeting: string): Block[] {
+  return [
+    ...from.map((text) => ({ text })),
+    { text: date, gap: 16 },
+    ...to.map((text, i) => ({ text, gap: i === 0 ? 16 : 0 })),
+    { text: re, bold: true, gap: 16 },
+    { text: greeting, gap: 16 },
+  ]
+}
+
+// What each letter type's packet is called, for the PDF's title.
 const PACKET_TITLES: Record<string, string> = {
   MC_239A: 'Response to Notice of Action (Medi-Cal discontinuance)',
   MC355: 'Response to Request for Information (MC 355)',
@@ -235,44 +400,52 @@ export async function buildPacket(input: PacketInput, mismatches: Mismatch[], fi
     bold: await packet.embedFont(StandardFonts.HelveticaBold),
   }
   const signature = input.signature ? await packet.embedPng(input.signature) : null
-  const sign = (page: PDFPage, x: number, y: number, maxWidth: number, maxHeight: number) => {
+  const sign = (page: PDFPage, x: number, y: number, maxWidth = 200, maxHeight = SIGNATURE_HEIGHT) => {
     if (!signature) return
     const scale = Math.min(maxWidth / signature.width, maxHeight / signature.height)
     page.drawImage(signature, { x, y, width: signature.width * scale, height: signature.height * scale })
   }
+  const { about } = input
+  const f = input.facts
 
-  // The page list for the cover sheet: [what it is, how many pages].
+  // What is in the packet after the cover letter: [what it is, how many pages].
   const contents: [string, number][] = []
-  // Whether a form page got the signature (if not, the cover sheet gets it).
-  let signedAPage = false
+  // Official form pages have their own fine print at the bottom, so they get no footer.
+  const formPages: PDFPage[] = []
 
   if (input.letterType === 'MC_239A' && input.hearing) {
     const { doc, overflow } = await hearingRequest(input, fonts)
     const page = await formPage(packet, doc)
+    formPages.push(page)
     // The signature box on the NA Back 9, beside the date.
     sign(page, 320, 168, 165, 16)
-    signedAPage = true
-    contents.push(['Request for a state hearing (NA Back 9)', 1])
+    contents.push(['Request for a state hearing (form NA Back 9)', 1])
     if (overflow) {
       const extra = packet.addPage([...LETTER])
-      writePage(extra, fonts, "Hearing request: Here's why (continued)", [overflow, `${input.about.name}, ${usDate(input.today)}`])
+      writePage(extra, fonts, "Hearing request: Here's why (continued)", [overflow, `${about.name}, ${usDate(input.today)}`])
       contents.push(["Hearing request: Here's why (continued)", 1])
     }
   }
 
+  // The letter asking the county to restore Medi-Cal, laid out like the cover letter.
   if (input.letterType === 'MC_239A' && input.undoLetter) {
-    const page = packet.addPage([...LETTER])
-    const y = writePage(page, fonts, 'Request to restore my Medi-Cal', [
-      `To: ${input.about.county} County, Medi-Cal`,
-      `From: ${input.about.name}, ${input.about.street}, ${input.about.city}, CA ${input.about.zip}`,
-      `Case number: ${input.facts.case_number ?? ''}`,
-      `Date: ${usDate(input.today)}`,
-      input.undoLetter,
-    ])
-    page.drawText('Signature:', { x: MARGIN, y: y - 20, size: 11, font: fonts.regular, color: INK })
-    sign(page, MARGIN + 70, y - 28, 200, 40)
-    signedAPage = true
-    contents.push(['Letter asking the county to restore my Medi-Cal', 1])
+    const blocks: Block[] = [
+      ...letterTop(
+        coverLetter({ ...input, hearing: false, undoLetter: false }).from,
+        longDate(input.today),
+        [`${about.county} County Medi-Cal`, ...(f.worker_name ? [`Attn: ${f.worker_name}`] : [])],
+        `Re: Please restore my Medi-Cal${f.case_number ? `, case number ${f.case_number}` : ''}`,
+        f.worker_name ? `Dear ${f.worker_name},` : 'Dear Medi-Cal worker,',
+      ),
+      ...bodyOnly(input.undoLetter).split(/\n\s*\n/).map((text) => ({ text: text.replace(/\n/g, ' '), gap: 10 })),
+      { text: 'Sincerely,', gap: 16 },
+      { signature: true, gap: 4 },
+      { text: about.name, gap: 2 },
+    ]
+    const { placed, pages } = placeBlocks(blocks, fonts)
+    const added = Array.from({ length: pages }, () => packet.addPage([...LETTER]))
+    drawPlaced(added, placed, sign)
+    contents.push(['Letter asking you to restore my Medi-Cal', pages])
   }
 
   if (input.letterType === 'MC210_RV') {
@@ -281,72 +454,57 @@ export async function buildPacket(input: PacketInput, mismatches: Mismatch[], fi
     const form = source.getForm()
     form.getTextField('sig_date').setText(usDate(input.today))
     const page = await formPage(packet, source)
+    formPages.push(page)
     sign(page, 92, 400, 300, 34)
-    signedAPage = true
-    contents.push(['MC 210 RV page 17: declaration and signature', 1])
+    contents.push(['My signed renewal page (MC 210 RV, page 17)', 1])
   }
 
   for (const file of input.attachments) {
-    contents.push([`Attached: ${printable(file.name)}`, await attachmentPages(packet, file, fonts)])
+    const what = `${file.type === 'application/pdf' ? 'Copy' : 'Photo'}: ${inMyWords(file.name)}`
+    contents.push([what, await attachmentPages(packet, file, fonts)])
   }
 
-  // The cover sheet goes first, with page numbers that count itself.
-  const cover = packet.insertPage(0, [...LETTER])
-  const f = input.facts
-  const lines = [
-    `To: ${input.about.county} County, Medi-Cal`,
-    `From: ${input.about.name}`,
-    `${input.about.street}, ${input.about.city}, CA ${input.about.zip}`,
-    `Phone: ${input.about.phone}`,
-    `Case number: ${f.case_number ?? ''}`,
-    `About the letter dated: ${f.notice_date ?? ''}`,
-    ...(f.due_date ? [`Due date on the letter: ${f.due_date}`] : []),
-    ...(f.effective_date ? [`Date coverage stops on the letter: ${f.effective_date}`] : []),
-    ...(f.worker_name || f.worker_phone ? [`Worker: ${[f.worker_name, f.worker_phone].filter(Boolean).join(', ')}`] : []),
-    `Sent: ${usDate(input.today)}`,
-  ]
-  let y = writePage(cover, fonts, PACKET_TITLES[input.letterType] ?? 'Medi-Cal response', [
-    ...lines,
-    [coverNote(input.letterType, f.notice_date), ...(input.statements ?? [])].join(' '),
-  ])
+  // The cover letter goes first. Its list of pages counts the letter itself,
+  // so it is laid out once to see how many pages the letter takes.
+  const words = coverLetter({ ...input, hearing: !!input.hearing && input.letterType === 'MC_239A', undoLetter: !!input.undoLetter && input.letterType === 'MC_239A' })
+  const letterBlocks = (letterPages: number): Block[] => {
+    let next = letterPages + 1
+    const index = contents.map(([what, count]) => {
+      const where = count === 1 ? `Page ${next}` : `Pages ${next}-${next + count - 1}`
+      next += count
+      return `${where}: ${what}`
+    })
+    const total = next - 1
+    return [
+      ...letterTop(words.from, words.date, words.to, words.re, words.greeting),
+      ...words.paragraphs.map((text) => ({ text, gap: 10 })),
+      ...(words.list.length ? [{ text: 'I am including:', gap: 10 }] : []),
+      ...words.list.map((text, i) => ({ text, bullet: true, gap: i === 0 ? 4 : 2 })),
+      ...words.after.map((text) => ({ text, gap: 10 })),
+      { text: words.closing, gap: 16 },
+      { signature: true, gap: 4 },
+      { text: words.name, gap: 2 },
+      { text: `Enclosures (${total} ${total === 1 ? 'page' : 'pages'} in all)`, bold: true, size: 9, gap: 24 },
+      { text: letterPages === 1 ? 'Page 1: This letter' : `Pages 1-${letterPages}: This letter`, size: 9, gap: 2 },
+      ...index.map((text) => ({ text, size: 9 })),
+    ]
+  }
+  let letterPages = placeBlocks(letterBlocks(1), fonts).pages
+  if (letterPages > 1) letterPages = placeBlocks(letterBlocks(letterPages), fonts).pages
+  const { placed } = placeBlocks(letterBlocks(letterPages), fonts)
+  const coverPages = Array.from({ length: letterPages }, (_, i) => packet.insertPage(i, [...LETTER]))
+  drawPlaced(coverPages, placed, sign)
 
-  // The papers the county asked for, with a box to tick for each one put in
-  // the envelope (photos are attached; paper copies can go in by hand).
-  if (input.toSend?.length) {
-    cover.drawText('The papers you asked for (tick each one included)', { x: MARGIN, y: y - 6, size: 13, font: fonts.bold, color: INK })
-    y -= 28
-    for (const item of input.toSend) {
-      for (const [i, line] of wrap(item, fonts.regular, 11, LETTER[0] - 2 * MARGIN - 24).entries()) {
-        if (i === 0) cover.drawText('[  ]', { x: MARGIN, y, size: 11, font: fonts.regular, color: INK })
-        cover.drawText(line, { x: MARGIN + 24, y, size: 11, font: fonts.regular, color: INK })
-        y -= 15
-      }
-    }
-    y -= 10
-  }
-
-  cover.drawText('What is in this packet', { x: MARGIN, y: y - 6, size: 13, font: fonts.bold, color: INK })
-  y -= 28
-  let pageNumber = 2
-  const index = [['Cover sheet', 'page 1'], ...contents.map(([what, count]) => {
-    const pages = count === 1 ? `page ${pageNumber}` : `pages ${pageNumber}-${pageNumber + count - 1}`
-    pageNumber += count
-    return [what, pages]
-  })]
-  for (const [what, pages] of index) {
-    cover.drawText(printable(`${what}`), { x: MARGIN, y, size: 11, font: fonts.regular, color: INK })
-    cover.drawText(pages, { x: LETTER[0] - MARGIN - 70, y, size: 11, font: fonts.regular, color: INK })
-    y -= 16
-  }
-  const total = pageNumber - 1
-  cover.drawText(`Total: ${total} ${total === 1 ? 'page' : 'pages'}`, { x: MARGIN, y: y - 6, size: 11, font: fonts.bold, color: INK })
-  // When no form in the packet has a place to sign, the cover sheet does.
-  if (!signedAPage) {
-    cover.drawText('Signature:', { x: MARGIN, y: y - 50, size: 11, font: fonts.regular, color: INK })
-    sign(cover, MARGIN + 70, y - 58, 200, 40)
-  }
-  cover.drawText(printable(`Please write the case number (${f.case_number ?? ''}) on anything that comes apart.`), {
-    x: MARGIN, y: MARGIN, size: 9, font: fonts.regular, color: INK,
+  // A small line at the bottom of each page the app made, so pages that come
+  // apart can be put back together.
+  const all = packet.getPages()
+  all.forEach((page, i) => {
+    if (formPages.includes(page)) return
+    const text = printable(
+      [about.name, f.case_number && `Case number ${f.case_number}`, `Page ${i + 1} of ${all.length}`].filter(Boolean).join('  |  '),
+    )
+    const width = fonts.regular.widthOfTextAtSize(text, 8)
+    page.drawText(text, { x: (page.getWidth() - width) / 2, y: 18, size: 8, font: fonts.regular, color: rgb(0.35, 0.35, 0.35) })
   })
 
   return packet.save()

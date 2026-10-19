@@ -3,7 +3,20 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { PDFDocument, StandardFonts } from 'pdf-lib'
 import { check } from './checker'
-import { buildPacket, hearingRequest, paperFactsFrom, printable, usDate, usPhone, type PacketInput } from './packet'
+import {
+  bodyOnly,
+  buildPacket,
+  coverLetter,
+  hearingRequest,
+  inMyWords,
+  longDate,
+  paperFactsFrom,
+  printable,
+  usDate,
+  usPhone,
+  type CoverLetterInput,
+  type PacketInput,
+} from './packet'
 
 const form = (name: string) => new Uint8Array(readFileSync(new URL(`../public/forms/${name}`, import.meta.url)))
 // A tiny real PNG (1 by 1 pixel), standing in for a signature and a photo.
@@ -103,5 +116,64 @@ describe('the reply packet', () => {
 
   it('letters the PDF font cannot write become ?, not a crash', () => {
     expect(printable('José “Pepe” Núñez 李')).toBe('José "Pepe" Núñez ?')
+  })
+})
+
+describe('the cover letter', () => {
+  const words = (changes: Partial<CoverLetterInput> = {}) =>
+    coverLetter({ ...input(), hearing: true, undoLetter: true, toSend: ['Your newest bank statement'], ...changes })
+
+  it('reads like a letter: address, date, who it is to, what it is about', () => {
+    const letter = words()
+    expect(letter.from).toEqual(['Rosa Flores', '7167 Tully Rd', 'Gilroy, CA 95020', '(408) 555-0199'])
+    expect(letter.date).toBe('October 20, 2026')
+    expect(letter.to).toEqual(['Santa Clara County Medi-Cal', 'Attn: Arturo Chen'])
+    expect(letter.re).toBe('Re: Case number 1C6T512, your letter dated October 1, 2026')
+    expect(letter.greeting).toBe('Dear Arturo Chen,')
+    expect(letter.closing).toBe('Sincerely,')
+  })
+
+  it('says when Medi-Cal stops, in the right tense', () => {
+    expect(words().paragraphs[0]).toContain('will stop on October 31, 2026')
+    expect(words({ today: '2026-11-05' }).paragraphs[0]).toContain('stopped on October 31, 2026')
+  })
+
+  it('lists what is included, in the person\'s own words', () => {
+    expect(words().list).toEqual([
+      'My newest bank statement',
+      'A letter asking you to restore my Medi-Cal',
+      'A request for a state hearing',
+    ])
+  })
+
+  it('says what the person does not have, and what comes later', () => {
+    const letter = words({ statements: ['I do not have life insurance.'], later: ['Your newest bank statement'] })
+    expect(letter.after[0]).toBe('I do not have life insurance.')
+    expect(letter.after[1]).toBe('I am still looking for my newest bank statement. I will send it as soon as I can.')
+  })
+
+  it('has no worker name: a plain greeting', () => {
+    const { worker_name: _name, ...facts } = input().facts
+    expect(words({ facts }).greeting).toBe('Dear Medi-Cal worker,')
+  })
+
+  it('turns "your" into "my", but keeps "your letter"', () => {
+    expect(inMyWords('The registration for each car you own')).toBe('The registration for each car I own')
+    expect(inMyWords('The papers your letter says are missing')).toBe('The papers your letter says are missing')
+  })
+
+  it('writes dates in words', () => {
+    expect(longDate('10/01/2026')).toBe('October 1, 2026')
+    expect(longDate('2026-12-25')).toBe('December 25, 2026')
+  })
+
+  it('takes "Dear" and "Sincerely" off a drafted letter, since the letter adds its own', () => {
+    expect(bodyOnly('Dear worker,\nPlease restore my Medi-Cal.\nSincerely,\nRosa')).toBe('Please restore my Medi-Cal.')
+  })
+
+  it('a long letter goes on to a second page', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => `Paper number ${i + 1}`)
+    const bytes = await buildPacket(input({ toSend: many, hearing: null, undoLetter: null, attachments: [] }), [], true)
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(2)
   })
 })

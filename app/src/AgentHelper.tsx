@@ -2,10 +2,13 @@
 //
 //   1. About you   name and address for the forms (only if not saved yet)
 //   2. Consent     what is sent to the AI, with private details removed
-//   3. Running     the live action log, one line per step
-//   4. Pauses      the AI waits while the person looks things over, signs,
+//   3. Papers      the same paper screens as step by step (PaperSteps.tsx):
+//                  which boxes are checked, the renewal form part by part,
+//                  then each paper, one at a time
+//   4. Running     the live action log, one line per step
+//   5. Pauses      the AI waits while the person looks things over, signs,
 //                  or takes a photo. These are the person's hands, not the AI's.
-//   5. The end     the saved packet, or a plain message if it had to stop
+//   6. The end     the saved packet, or a plain message if it had to stop
 //
 // The loop itself is agentLoop.ts and the tools are agentTools.ts, both from
 // Neil's agent/TOOLS.md. This file only gives the tools the phone's storage
@@ -18,13 +21,17 @@ import { closestItem, letterId, logRecord, logWords, restoreLetterBody } from '.
 import { check } from './checker'
 import { todayOnThisPhone } from './deadlines'
 import { readText } from './ocr'
-import { buildPacket, coverNote, type AboutYou, type PacketInput } from './packet'
-import { AboutForm, Done, fetchForm, RENEWAL_PHOTOS } from './ReplyPacket'
-import PaperChecklist, { missingPhotos } from './PaperChecklist'
-import { whatToSend } from './letterJob'
+import { buildPacket, type AboutYou, type PacketInput } from './packet'
+import { AboutForm, Done, fetchForm } from './ReplyPacket'
+import PaperSteps from './PaperSteps'
+import { helpFor } from './paperHelp'
+import { CoverPreview, PhotoPreview, letterValue } from './ReplyPreview'
 import SignaturePad from './SignaturePad'
 import { addPaper, listEvents, listPapers, loadAbout, saveAbout, saveHelperLog, type Paper, type SavedLetter } from './storage'
+import { usePapers } from './usePapers'
 import { FACT_LABELS, savedOn } from './words'
+
+type Papers = ReturnType<typeof usePapers>
 
 // While the AI waits for the person, the screen shows one of these. `answer`
 // hands the person's choice back to the waiting tool.
@@ -33,7 +40,7 @@ type Pause =
   | { kind: 'sign'; answer: (png: Uint8Array | null) => void }
   | { kind: 'photo'; paperName: string; answer: (paperId: string | null) => void }
 
-type Stage = 'about' | 'consent' | 'running' | 'ended'
+type Stage = 'about' | 'consent' | 'papers' | 'running' | 'ended'
 
 const isReplyPacket = (p: Paper) => p.name.startsWith('Reply packet')
 
@@ -48,21 +55,30 @@ export default function AgentHelper({ letter, onBack, onManual }: {
   const [pause, setPause] = useState<Pause | null>(null)
   const [end, setEnd] = useState<RunEnd | null>(null)
   const made = useRef<Paper | null>(null)
+  // The papers: the same screens and answers as step by step (usePapers.ts).
+  const papers = usePapers(letter)
+  // The AI's tools run outside the screens, so they read the newest answers here.
+  const latest = useRef(papers)
+  latest.current = papers
+
+  function show(next: Stage) {
+    setStage(next)
+    window.scrollTo(0, 0)
+  }
 
   async function start() {
-    setStage('running')
+    show('running')
     setLog([])
     made.current = null
     const lines: LogLine[] = []
-    const result = await runAgent(makeWorld(letter, about!, setPause, made), newRunState(), askAI, (line) => {
+    const result = await runAgent(makeWorld(letter, about!, setPause, made, latest), newRunState(), askAI, (line) => {
       lines.push(line)
       setLog([...lines])
     })
     saveHelperLog(lines.map(logRecord))
     setPause(null)
     setEnd(result)
-    setStage('ended')
-    window.scrollTo(0, 0)
+    show('ended')
   }
 
   if (stage === 'about') {
@@ -74,8 +90,7 @@ export default function AgentHelper({ letter, onBack, onManual }: {
         onSave={(next) => {
           saveAbout(next)
           setAbout(next)
-          setStage('consent')
-          window.scrollTo(0, 0)
+          show('consent')
         }}
       />
     )
@@ -86,8 +101,8 @@ export default function AgentHelper({ letter, onBack, onManual }: {
       <>
         <h1 className="page-title">We'll put your reply together for you</h1>
         <p className="lead">
-          We look at your letter and the papers you've saved, and ask you for photos of anything missing. Then you
-          read it over and sign. We never send anything to the county. You do that yourself.
+          First we go through your papers with you, one at a time. Then we put your reply together, and you read it
+          over and sign. We never send anything to the county. You do that yourself.
         </p>
         <div className="card">
           <h2>What the AI sees</h2>
@@ -99,7 +114,7 @@ export default function AgentHelper({ letter, onBack, onManual }: {
           </ol>
           <p className="small">Your photos and your signature never leave this phone.</p>
         </div>
-        <button className="button primary big" onClick={start}>
+        <button className="button primary big" onClick={() => show('papers')}>
           Yes, help me
         </button>
         <button className="button" onClick={onManual}>
@@ -109,6 +124,19 @@ export default function AgentHelper({ letter, onBack, onManual }: {
           Back to my letter
         </button>
       </>
+    )
+  }
+
+  if (stage === 'papers') {
+    return (
+      <PaperSteps {...papers.stepsProps}>
+        <button className="button primary big" onClick={start}>
+          Next: put my reply together
+        </button>
+        <button className="link" onClick={onBack}>
+          Back to my letter
+        </button>
+      </PaperSteps>
     )
   }
 
@@ -135,7 +163,9 @@ export default function AgentHelper({ letter, onBack, onManual }: {
   // Running: a pause screen if the AI is waiting for the person, and the live log.
   return (
     <>
-      {pause?.kind === 'review' && <ReviewScreen view={pause.view} letter={letter} answer={pause.answer} />}
+      {pause?.kind === 'review' && (
+        <ReviewScreen view={pause.view} letter={letter} about={about!} papers={papers} answer={pause.answer} />
+      )}
       {pause?.kind === 'sign' && <SignScreen answer={pause.answer} />}
       {pause?.kind === 'photo' && <PhotoScreen paperName={pause.paperName} answer={pause.answer} />}
       {!pause && (
@@ -157,6 +187,7 @@ function makeWorld(
   about: AboutYou,
   setPause: (pause: Pause | null) => void,
   made: { current: Paper | null },
+  latest: { current: Papers },
 ): AgentWorld {
   // Reading a photo takes a few seconds, so each paper is read only once.
   const texts = new Map<string, string>()
@@ -175,7 +206,7 @@ function makeWorld(
 
   return {
     letter: { id: letterId(letter), letterType: letter.letterType, facts: letter.facts, text: letter.text ?? '' },
-    consent: true, // they tapped "Yes, start"
+    consent: true, // they tapped "Yes, help me"
     // Blanked everywhere, even with no label next to them (agentLoop.ts).
     privateNames: [about.name, about.street].filter((word) => word.trim().length > 0),
     async listPapers() {
@@ -201,18 +232,22 @@ function makeWorld(
       return text
     },
     listEvents,
-    // Saved under the matching checklist line, so the checklist shows it as done.
-    takePhoto: (asked) =>
-      waitFor<string | null>((answer) => ({
-        kind: 'photo',
-        paperName: closestItem(asked, whatToSend(letter.letterType, letter.facts.ask ?? null)),
-        answer,
-      })),
+    // Saved under the matching paper's name, so the papers list shows it as done.
+    async takePhoto(asked) {
+      const { photoItems, toSend, answers } = latest.current
+      const item = closestItem(asked, photoItems ?? toSend)
+      // The person already answered for this paper on the paper screens ("I'll
+      // put the paper copy in", "I don't have it", "later"), so don't ask again.
+      if (answers[item] && answers[item] !== 'photo') return null
+      const id = await waitFor<string | null>((answer) => ({ kind: 'photo', paperName: item, answer }))
+      if (id) await latest.current.addPhoto(item, id)
+      return id
+    },
     review: (view) => waitFor<ReviewAnswer | null>((answer) => ({ kind: 'review', view, answer })),
     sign: () => waitFor<Uint8Array | null>((answer) => ({ kind: 'sign', answer })),
 
-    // Only called by build_packet, after its checks passed. The same forms
-    // and the same buildPacket as "Manually prepare my response".
+    // Only called by build_packet, after its checks passed. The same forms,
+    // the same papers list and the same buildPacket as step by step.
     async build(packet, drafts, signature) {
       const [hearingRequest, renewalSignaturePage] = await Promise.all([
         fetchForm('/forms/hearing-request.pdf'),
@@ -231,7 +266,9 @@ function makeWorld(
         today: todayOnThisPhone(),
         hearing: hearing ? { reason: hearing.reason } : null,
         undoLetter: restore ? restoreLetterBody(restore) : null,
-        toSend: whatToSend(letter.letterType, letter.facts.ask ?? null),
+        toSend: latest.current.included,
+        statements: latest.current.statements,
+        later: latest.current.later,
         attachments,
         signature,
         forms: { hearingRequest, renewalSignaturePage },
@@ -272,65 +309,82 @@ function ActionLog({ log }: { log: LogLine[] }) {
   )
 }
 
-// The review screen: the person's hands. They can change the papers, untick
-// a draft, rewrite a reason and fix yellow boxes. Done hands their choices
-// back; the tool then reruns the checker.
-function ReviewScreen({ view, letter, answer }: {
+// The review screen: the person's hands. The same preview as step by step,
+// and the same ways to change things: the papers (the same paper screens),
+// a date or number, a draft letter. Done hands their choices back; the tool
+// then reruns the checker.
+function ReviewScreen({ view, letter, about, papers, answer }: {
   view: ReviewView
   letter: SavedLetter
+  about: AboutYou
+  papers: Papers
   answer: (choice: ReviewAnswer | null) => void
 }) {
   const { packet, drafts, explanations } = view
-  const [papers, setPapers] = useState<Paper[]>([])
-  const [paperIds, setPaperIds] = useState<string[]>(packet.paperIds)
+  const { chosen, setChosen } = papers
+  const [editingPapers, setEditingPapers] = useState(false)
   // A hearing is a backup, so it starts unticked unless the county made a
   // mistake (then there is a restore letter too). The person can tick it.
   const mistakeFound = drafts.some((d) => d.kind === 'restore_letter')
   const [kept, setKept] = useState<string[]>(
     drafts.filter((d) => d.kind !== 'hearing_request' || mistakeFound).map((d) => d.id),
   )
+  const yellow = packet.check?.yellowBoxes ?? []
   // The form boxes stay folded away unless something does not match.
-  const [changing, setChanging] = useState((packet.check?.yellowBoxes ?? []).length > 0)
+  const [changing, setChanging] = useState(yellow.length > 0)
   const [reasons, setReasons] = useState<Record<string, string>>(Object.fromEntries(drafts.map((d) => [d.id, d.reason])))
   const [formFacts, setFormFacts] = useState(packet.formFacts)
-  const [atLimit, setAtLimit] = useState(false)
-  // The papers the county asked for, each with its own photo button.
-  const photoItems = letter.letterType === 'MC210_RV' ? RENEWAL_PHOTOS : whatToSend(letter.letterType, letter.facts.ask ?? null)
 
+  // Any photo the AI picked goes in too, beside the ones from the paper screens.
   useEffect(() => {
-    listPapers().then((all) => setPapers(all.filter((p) => !isReplyPacket(p)))).catch(() => setPapers([]))
+    setChosen((old) => [...old, ...packet.paperIds.filter((id) => !old.includes(id))])
+    listPapers().then(papers.setPapers).catch(() => {})
   }, [])
 
-  // A kept hearing request needs a reason, like in the manual flow.
+  if (editingPapers) {
+    return (
+      <PaperSteps {...papers.stepsProps}>
+        <button
+          className="button primary big"
+          onClick={() => {
+            setEditingPapers(false)
+            window.scrollTo(0, 0)
+          }}
+        >
+          Back to my reply
+        </button>
+      </PaperSteps>
+    )
+  }
+
+  const photos = papers.papers.filter((p) => chosen.includes(p.id) && !isReplyPacket(p))
+  const tooMany = chosen.length > MAX_PAPERS
+  // A kept hearing request needs a reason, like in the step-by-step reply.
   const missingReason = drafts.some((d) => d.kind === 'hearing_request' && kept.includes(d.id) && !reasons[d.id]?.trim())
-  const yellow = packet.check?.yellowBoxes ?? []
 
   return (
     <>
       <h1 className="page-title">Look over your reply</h1>
-      <p className="lead">This is what we'll send to the county. Read it through, and change anything you want.</p>
-
-      <div className="card preview">
-        <p className="preview-label">The cover letter says</p>
-        <p className="preview-note">{coverNote(letter.letterType, packet.formFacts.notice_date)}</p>
-      </div>
-
-      <h2 className="section-title">Your papers</h2>
-      <p className="hint">Tap a button to take a photo of a paper. We'll add it to your reply.</p>
-      <PaperChecklist
-        items={photoItems}
-        papers={papers}
-        chosen={paperIds}
-        onChange={(ids) => {
-          setAtLimit(ids.length > MAX_PAPERS)
-          setPaperIds(ids.slice(0, MAX_PAPERS))
-        }}
-        onPapersChanged={(all) => setPapers(all.filter((p) => !isReplyPacket(p)))}
-      />
-      {atLimit && <p className="hint">You can send up to {MAX_PAPERS} papers. Untick one to add another.</p>}
-      {missingPhotos(photoItems, papers, paperIds) > 0 && (
-        <p className="hint">Some papers have no photo yet. That's okay. You can put paper copies in the envelope yourself.</p>
+      <p className="lead">This is what we'll send to the county. Read it through. You can change anything before you sign.</p>
+      {packet.check?.pass && (
+        <p className="all-good" role="status">
+          ✓ The dates and numbers match your letter.
+        </p>
       )}
+
+      <CoverPreview
+        letterType={letter.letterType}
+        about={about}
+        facts={formFacts}
+        today={todayOnThisPhone()}
+        toSend={papers.included}
+        statements={papers.statements}
+        later={papers.later}
+        hearing={drafts.some((d) => d.kind === 'hearing_request' && kept.includes(d.id))}
+        undoLetter={drafts.some((d) => d.kind === 'restore_letter' && kept.includes(d.id))}
+      />
+      <PhotoPreview photos={photos} onRemove={(id) => setChosen(chosen.filter((c) => c !== id))} />
+      {tooMany && <p className="hint">You can send up to {MAX_PAPERS} photos. Take some out.</p>}
 
       {/* The restore letter first, then the hearing (a backup). */}
       {[...drafts]
@@ -346,20 +400,15 @@ function ReviewScreen({ view, letter, answer }: {
           />
         ))}
 
-      {yellow.length === 0 && !changing ? (
-        <>
-          <p className="all-good">✓ Your reply matches your letter.</p>
-          <button className="link" onClick={() => setChanging(true)}>
-            Something wrong? Change it
-          </button>
-        </>
-      ) : (
+      {changing && (
         <>
           <h2 className="section-title">What goes on your forms</h2>
-          {yellow.length > 0 && (
+          {yellow.length > 0 ? (
             <p className="error" role="alert">
               Fix the yellow {yellow.length === 1 ? 'box' : 'boxes'} so they match your letter.
             </p>
+          ) : (
+            <p className="lead">Change what is wrong, then tap Check again.</p>
           )}
           {Object.keys(formFacts).map((field) => {
             const box = yellow.find((b) => b.field === field)
@@ -369,7 +418,7 @@ function ReviewScreen({ view, letter, answer }: {
                 <input value={formFacts[field]} onChange={(e) => setFormFacts({ ...formFacts, [field]: e.target.value })} />
                 {box && (
                   <span className="fact-flag">
-                    Your letter says: {box.expected}
+                    Your letter says: {letterValue(field, box.expected)}
                     {explanations[box.yellow_box_id] ? `. ${explanations[box.yellow_box_id]}` : ''}
                   </span>
                 )}
@@ -380,13 +429,28 @@ function ReviewScreen({ view, letter, answer }: {
       )}
 
       <button
-        className="button primary"
-        disabled={missingReason}
-        onClick={() => answer({ paperIds, keptDraftIds: kept, reasons, formFacts })}
+        className="button primary big"
+        disabled={missingReason || tooMany}
+        onClick={() => answer({ paperIds: chosen, keptDraftIds: kept, reasons, formFacts })}
       >
-        Done
+        {changing ? 'Check again' : 'It looks right. Next, sign it'}
       </button>
       {missingReason && <p className="hint">Write why, or untick the hearing.</p>}
+      <p className="hint">Want to change something?</p>
+      <div className="button-row">
+        <button
+          className="button"
+          onClick={() => {
+            setEditingPapers(true)
+            window.scrollTo(0, 0)
+          }}
+        >
+          The papers
+        </button>
+        <button className="button" onClick={() => setChanging(true)}>
+          A date or number
+        </button>
+      </div>
       <button className="link" onClick={() => answer(null)}>
         Stop and go back
       </button>
@@ -434,8 +498,8 @@ function SignScreen({ answer }: { answer: (png: Uint8Array | null) => void }) {
       <h1 className="page-title">Sign your reply</h1>
       <p className="lead">Sign in the box with your finger. When you sign, you're saying everything in your reply is true. Your signature stays on this phone.</p>
       <SignaturePad onChange={setSignature} />
-      <button className="button primary" disabled={!signature} onClick={() => answer(signature)}>
-        Sign
+      <button className="button primary big" disabled={!signature} onClick={() => answer(signature)}>
+        Sign and finish
       </button>
       <button className="button" onClick={() => answer(null)}>
         Not now
@@ -444,14 +508,28 @@ function SignScreen({ answer }: { answer: (png: Uint8Array | null) => void }) {
   )
 }
 
-// The AI asked for a paper that is not saved yet.
+// The AI asked for a paper that has no photo yet. The same help as on the
+// paper screens: what it is and where people usually find it.
 function PhotoScreen({ paperName, answer }: { paperName: string; answer: (paperId: string | null) => void }) {
+  const help = helpFor(paperName)
   return (
     <>
       <h1 className="page-title">Can you take a photo of this?</h1>
-      <p className="lead">Please take a photo of: {paperName || 'a paper'}.</p>
-      <label className="button primary">
-        Take the photo
+      <p className="lead">{paperName || 'A paper for your reply'}</p>
+      {paperName && (
+        <div className="card">
+          <p>
+            <strong>What it is: </strong>
+            {help.what}
+          </p>
+          <p>
+            <strong>Where to find it: </strong>
+            {help.where}
+          </p>
+        </div>
+      )}
+      <label className="button primary big">
+        Take a photo of it
         <input
           type="file"
           accept="image/*"
@@ -467,7 +545,7 @@ function PhotoScreen({ paperName, answer }: { paperName: string; answer: (paperI
         />
       </label>
       <button className="button" onClick={() => answer(null)}>
-        I don't have it
+        I don't have it right now
       </button>
     </>
   )
