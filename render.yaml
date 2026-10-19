@@ -5,7 +5,7 @@ services:
     name: replyby
     runtime: docker
     plan: free
-    branch: main-usmsdg
+    branch: main
     healthCheckPath: /api/health
     envVars:
       - key: GEMINI_API_KEY

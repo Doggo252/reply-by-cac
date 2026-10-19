@@ -7,19 +7,20 @@ October 24.** Monday is a zero day, so Saturday is the real deadline.
 
 Legend: **[N]** Neil writes it. **[C]** Claude builds it.
 
-## The time budget
+## The time budget (week of October 19)
 
 | Day | Hours |
 |---|---|
 | Monday | 0 |
-| Tuesday | 1 |
+| Tuesday | 0.5 |
 | Wednesday | 1 |
-| Thursday | 1.5 |
-| Friday | 1 (3 this week, no school) |
-| Saturday | 2.5 |
-| Sunday | 2.5 (short this week) |
+| Thursday | 2 |
+| Friday | 2 |
+| Saturday | 2 to 3 |
+| Sunday | 2 to 3 (backup only) |
 
-Monday is the slip day: overruns land there because it costs nothing to lose.
+Submit Saturday. Sunday is the backup: overruns land there, with Monday 9 am
+as the hard deadline.
 
 ---
 
@@ -106,8 +107,8 @@ low. Only one more full test run, near submission.**
   - [x] [C] The screens: AI helper, live action log, review screen, consent
         message (10/17); the watcher on app open (10/18).
 - [ ] **Fri 10/16 (1h)** [N] User test. Grandpa and Grandma are no longer on
-      Medi-Cal, so **Mom tests instead** (tonight, 10/18). Say nothing, watch,
-      write down every hesitation.
+      Medi-Cal, so **Mom tests instead** (moved to Tue 10/20). Say nothing,
+      watch, write down every hesitation.
 - [x] **Sat 10/17 (2.5h)** [N] Fix the top problems with Claude.
       [C] the https address and the evaluation dashboard.
   - [x] [C] Hosting ready (10/18): `Dockerfile` and `render.yaml`, one
@@ -132,12 +133,15 @@ low. Only one more full test run, near submission.**
   - [x] "Read it to me" (reads the screen out loud) and "Remind me on my
         calendar".
   - [x] Generator tests pass on Windows too.
-  - [ ] [N] Review and commit everything.
-  - [ ] [N] Phone check: "Read it to me" talks; the calendar file opens Calendar.
+  - [x] [N] Review and commit everything.
+  - [x] [N] Phone check: "Read it to me" talks; the calendar file opens Calendar.
+  - [x] [N] One real AI helper run after the review screen changed.
+  - [ ] [N + Parent] Put the app on Render (steps from Claude, 10/18).
+        `render.yaml` now points at `main`.
   - [ ] [N] Airplane-mode test on the Render address (steps from Claude, 10/18).
   - [x] [N] Video script: drafted 10/18, Neil is editing it in his Claude doc.
-  - [ ] [N] Record a rough cut as insurance for week 6.
-  - [ ] [N] Mom's test (see Fri 10/16 above).
+  - [x] Rough cut: skipped (Neil's choice).
+  - [ ] [N] Mom's test: moved to Tue 10/20.
 
 - [ ] **Weak spot: Reader A misses dates** (notice date right 68%, effective
       date 69%, due date 90%; it leaves them blank, never makes them up).
@@ -151,28 +155,29 @@ low. Only one more full test run, near submission.**
 
 ## Week 6: video and submission
 
-- [ ] **Tue 10/20 (1h)** [C] repo cleanup: README, one-command tests.
-      [N] reviews it.
+- [ ] **Mon 10/19 (0h)** Nothing.
+- [ ] **Tue 10/20 (0.5h)** [N] Mom's test, then send Claude the list.
+      [C] fixes it and writes the README. [N] checks the fixes on the phone
+      and commits.
 - [ ] **Wed 10/21 (1h)** [N] Submission write-up, plus the AI disclosure
       copied from `AI-USE.md`.
-- [ ] **Thu 10/22 (1.5h)** [N] Record the app on a phone stand; record the
-      story separately.
-- [ ] **Fri 10/23 (1h)** [N] Edit to under three minutes.
-- [ ] **Sat 10/24 (2.5h)** [N] Whiteboard rehearsal (classifier, rules,
-      checker, agent guard, two minutes each, recorded once). **Submit.**
-      Confirm the confirmation email arrives.
+- [ ] **Thu 10/22 (2h)** [N] Record the app on a phone stand (the script's
+      cues), then record yourself talking. Skim the README and commit it.
+- [ ] **Fri 10/23 (2h)** [N] Edit to under three minutes.
+- [ ] **Sat 10/24 (2-3h)** [N] Whiteboard rehearsal (classifier, rules,
+      checker, agent guard, two minutes each). Open the Render site once.
+      **Submit.** Confirm the confirmation email arrives.
+- [ ] **Sun 10/25 (2-3h)** Backup only, for anything that slipped.
 
 ---
 
 ## Standing risks
 
 - **One lost Saturday costs a week of authored work.**
-- **Week 6 has 1.5 hours to record and 1 hour to edit.** The rough cut is the
-  insurance.
+- **Recording and editing get 2 hours each (Thu, Fri), with no rough cut.**
+  Sunday is the only backup.
 - **The airplane-mode test has not been run yet.** It needs the Render
   address, since offline mode only works over https.
-- **The AI helper's review screen changed today** and has not had a real run
-  since (each run uses Gemini credit). One real run before recording.
 - **Reader A misses dates** (notice date only 68%). The confirm screen
   catches it, but the user has to type them. No prompt rework before
   submission.
