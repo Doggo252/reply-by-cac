@@ -1,6 +1,7 @@
 // Sign with a finger. Draws on a canvas and hands back the signature as a
 // PNG (transparent background, dark blue ink) for the forms.
 import { useEffect, useRef, useState } from 'react'
+import { t } from './language'
 
 const INK = '#13235b'
 
@@ -91,16 +92,16 @@ export default function SignaturePad({ onChange }: { onChange: (png: Uint8Array 
       <canvas
         ref={canvas}
         className="signature-pad"
-        aria-label="Sign here with your finger"
+        aria-label={t('Sign here with your finger')}
         onPointerDown={start}
         onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={end}
       />
       <div className="signature-bottom">
-        <span className="small">{signed ? 'Signed' : 'Sign above with your finger'}</span>
+        <span className="small">{signed ? t('Signed') : t('Sign above with your finger')}</span>
         <button type="button" className="link" onClick={clear} disabled={!signed}>
-          Clear
+          {t('Clear')}
         </button>
       </div>
     </div>

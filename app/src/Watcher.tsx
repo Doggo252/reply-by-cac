@@ -7,6 +7,7 @@ import { todayOnThisPhone, type RulesFile } from './deadlines'
 import { listEvents, loadDone, saveDone, type SavedLetter } from './storage'
 import { watch, type Warning } from './watchRules'
 import { inWords } from './words'
+import { t } from './language'
 
 export default function Watcher({ letter, helperOffered, onUseHelper, onMakeReply }: {
   letter: SavedLetter
@@ -39,9 +40,13 @@ export default function Watcher({ letter, helperOffered, onUseHelper, onMakeRepl
         w.kind === 'deadline' ? (
           <div key={w.deadline.id} className="card warning" role="alert">
             <h2>
-              {w.deadline.daysLeft === 0 ? 'Today is the last day' : `Only ${w.deadline.daysLeft} day${w.deadline.daysLeft === 1 ? '' : 's'} left`}
+              {w.deadline.daysLeft === 0
+                ? t('Today is the last day')
+                : w.deadline.daysLeft === 1
+                  ? t('Only 1 day left')
+                  : t('Only {n} days left', { n: w.deadline.daysLeft ?? 0 })}
             </h2>
-            <p>The last day is {inWords(w.deadline.date!)}. Did you already send it?</p>
+            <p>{t('The last day is {date}. Did you already send it?', { date: inWords(w.deadline.date!) })}</p>
             <div className="button-row">
               <button
                 className="button"
@@ -51,20 +56,20 @@ export default function Watcher({ letter, helperOffered, onUseHelper, onMakeRepl
                   setDone(next)
                 }}
               >
-                Yes, I sent it
+                {t('Yes, I sent it')}
               </button>
               <button className="button" onClick={() => setLater([...later, w.deadline.id])}>
-                Not yet
+                {t('Not yet')}
               </button>
             </div>
           </div>
         ) : (
           <div key={`mistake-${w.finding.rule}`} className="card warning" role="alert">
-            <h2>The county may have made a mistake</h2>
-            <p>{w.finding.reason}</p>
-            <p className="small">Law: {w.finding.citation}</p>
+            <h2>{t('The county may have made a mistake')}</h2>
+            <p>{t(w.finding.reason)}</p>
+            <p className="small">{t('Law: {law}', { law: w.finding.citation })}</p>
             <button className="button" onClick={helperOffered ? onUseHelper : onMakeReply}>
-              Ask the county to fix it
+              {t('Ask the county to fix it')}
             </button>
           </div>
         ),

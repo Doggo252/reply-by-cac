@@ -10,6 +10,7 @@ the project's list of add-ons short.
 
 import json
 import os
+import time
 from datetime import date
 
 import httpx
@@ -47,6 +48,27 @@ def count_call(day=None):
     _today["calls"] += 1
 
 
+# Google sometimes answers "busy, try again" (429, 500, 503). That is not the
+# person's fault, so wait a moment and try again before giving up.
+BUSY = {429, 500, 502, 503, 504}
+WAITS = [2, 5]  # seconds to wait before the 2nd and 3rd tries
+
+
+def post(body, key):
+    """Sends one request to the model, trying again if Google is busy."""
+    for wait in [0, *WAITS]:
+        time.sleep(wait)
+        try:
+            response = httpx.post(URL, json=body, headers={"x-goog-api-key": key}, timeout=60)
+        except httpx.HTTPError as error:
+            raise LLMError(f"could not reach the model: {error}") from error
+        if response.status_code not in BUSY:
+            break
+    if response.status_code != 200:
+        raise LLMError(f"model returned {response.status_code}")
+    return response
+
+
 def ask_for_json(prompt):
     """Sends the prompt and returns the model's answer as a Python dict."""
     count_call()
@@ -58,12 +80,7 @@ def ask_for_json(prompt):
         # JSON only, and temperature 0 so the same letter gets the same answer.
         "generationConfig": {"responseMimeType": "application/json", "temperature": 0, "thinkingConfig": THINKING},
     }
-    try:
-        response = httpx.post(URL, json=body, headers={"x-goog-api-key": key}, timeout=60)
-    except httpx.HTTPError as error:
-        raise LLMError(f"could not reach the model: {error}") from error
-    if response.status_code != 200:
-        raise LLMError(f"model returned {response.status_code}")
+    response = post(body, key)
     try:
         text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
         return json.loads(text)
@@ -84,12 +101,7 @@ def ask_with_tools(instructions, contents, tools):
         "tools": [{"functionDeclarations": tools}],
         "generationConfig": {"thinkingConfig": THINKING},
     }
-    try:
-        response = httpx.post(URL, json=body, headers={"x-goog-api-key": key}, timeout=60)
-    except httpx.HTTPError as error:
-        raise LLMError(f"could not reach the model: {error}") from error
-    if response.status_code != 200:
-        raise LLMError(f"model returned {response.status_code}")
+    response = post(body, key)
     try:
         return response.json()["candidates"][0]["content"]["parts"]
     except (KeyError, IndexError, ValueError) as error:

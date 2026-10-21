@@ -8,6 +8,7 @@
 import rulesFile from '../../core/rules/deadlines.json'
 import { evaluate, type Deadline, type RulesFile } from './deadlines'
 import { inWords } from './words'
+import { t } from './language'
 
 const rules = rulesFile as RulesFile
 
@@ -34,26 +35,27 @@ export function jobFor(letterType: string, facts: Record<string, string | null>,
   const deadlines = evaluate(rules, letterType, facts, today)
   const byId = (id: string) => deadlines.find((d) => d.id === id) ?? null
   const deadline = byId(MAIN_DEADLINE[letterType])
-  const by = deadline?.date ? ` by ${inWords(deadline.date)}` : ''
+  const date = deadline?.date ? inWords(deadline.date) : ''
   const passed = deadline?.status === 'passed'
   const toSend = whatToSend(letterType, facts.ask ?? null)
-  const them = toSend.length === 1 ? 'it' : 'them'
+  // "Send it by ..." or "Send them by ...", in the person's language.
+  const send = toSend.length === 1 ? (date ? t('Send it by {date}', { date }) : t('Send it')) : date ? t('Send them by {date}', { date }) : t('Send them')
 
   if (letterType === 'MC_239A') {
     const stop = facts.effective_date
     return {
       headline: !stop
-        ? 'Your Medi-Cal is going to stop'
+        ? t('Your Medi-Cal is going to stop')
         : stop <= today
-          ? `Your Medi-Cal stopped on ${inWords(stop, false)}`
-          : `Your Medi-Cal will stop on ${inWords(stop, false)}`,
-      listTitle: 'The county says they never got:',
+          ? t('Your Medi-Cal stopped on {date}', { date: inWords(stop, false) })
+          : t('Your Medi-Cal will stop on {date}', { date: inWords(stop, false) }),
+      listTitle: t('The county says they never got:'),
       toSend,
-      task: passed ? 'The 90 days to send them are over' : `Send ${them}${by}`,
+      task: passed ? t('The 90 days to send them are over') : send,
       why: passed
-        ? 'Call your county worker. You may need to apply again.'
-        : 'Then your Medi-Cal comes back, and you won\'t have to apply again.',
-      button: 'Help me send my papers',
+        ? t('Call your county worker. You may need to apply again.')
+        : t("Then your Medi-Cal comes back, and you won't have to apply again."),
+      button: t('Help me send my papers'),
       deadline,
       hearing: { lastDay: byId('hearing_request'), keepsCoverage: byId('hearing_coverage') },
     }
@@ -61,28 +63,28 @@ export function jobFor(letterType: string, facts: Record<string, string | null>,
 
   if (letterType === 'MC355') {
     return {
-      headline: 'The county needs some papers from you',
-      listTitle: 'They asked for:',
+      headline: t('The county needs some papers from you'),
+      listTitle: t('They asked for:'),
       toSend,
-      task: passed ? 'The date to send them has passed' : `Send ${them}${by}`,
+      task: passed ? t('The date to send them has passed') : send,
       why: passed
-        ? 'Send them as soon as you can, and call your county worker.'
-        : 'If they don\'t get them, your Medi-Cal could stop.',
-      button: 'Help me send my papers',
+        ? t('Send them as soon as you can, and call your county worker.')
+        : t("If they don't get them, your Medi-Cal could stop."),
+      button: t('Help me send my papers'),
       deadline,
       hearing: null,
     }
   }
 
   return {
-    headline: 'It\'s time to renew your Medi-Cal',
-    listTitle: 'You\'ll need to send back:',
+    headline: t("It's time to renew your Medi-Cal"),
+    listTitle: t("You'll need to send back:"),
     toSend,
-    task: passed ? 'The date to send it back has passed' : `Mail it back${by}`,
+    task: passed ? t('The date to send it back has passed') : date ? t('Mail it back by {date}', { date }) : t('Mail it back'),
     why: passed
-      ? 'Send it as soon as you can, and call your county worker.'
-      : 'If you don\'t, your Medi-Cal could stop. We\'ll show you which pages to fill in.',
-    button: 'Help me with my renewal',
+      ? t('Send it as soon as you can, and call your county worker.')
+      : t("If you don't, your Medi-Cal could stop. We'll fill in the form with you, one question at a time."),
+    button: t('Help me with my renewal'),
     deadline,
     hearing: null,
   }
@@ -138,7 +140,7 @@ export function timing(deadline: Deadline | null): { soon: boolean; weekendFrida
 // "74 days left", "Today is the last day", or "" when there is no date.
 export function daysLeftWords(deadline: Deadline | null): string {
   if (!deadline || deadline.daysLeft === null) return ''
-  if (deadline.status === 'today') return 'Today is the last day'
+  if (deadline.status === 'today') return t('Today is the last day')
   if (deadline.status === 'passed') return ''
-  return `${deadline.daysLeft} day${deadline.daysLeft === 1 ? '' : 's'} left`
+  return deadline.daysLeft === 1 ? t('1 day left') : t('{n} days left', { n: deadline.daysLeft })
 }

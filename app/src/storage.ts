@@ -27,24 +27,45 @@ const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).sli
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('replyby', 1)
-    // Runs the first time only: makes the two tables.
+    // Version 2: the same two tables. Opening as version 2 fixes a database
+    // that was left with no tables (seen in testing on Oct 20, right after
+    // "Start over"); a phone that already has the tables keeps everything.
+    const request = indexedDB.open('replyby', 2)
+    // Runs the first time only: makes any table that is missing.
     request.onupgradeneeded = () => {
-      request.result.createObjectStore('papers', { keyPath: 'id' })
-      request.result.createObjectStore('events', { keyPath: 'id' })
+      const db = request.result
+      if (!db.objectStoreNames.contains('papers')) db.createObjectStore('papers', { keyPath: 'id' })
+      if (!db.objectStoreNames.contains('events')) db.createObjectStore('events', { keyPath: 'id' })
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
   })
 }
 
-// Runs one read or write on a table and waits for it to finish.
+// Runs one read or write on a table and waits for it to finish. The
+// connection is closed after, so "Start over" can delete the database.
 async function use<T>(table: 'papers' | 'events', write: boolean, action: (store: IDBObjectStore) => IDBRequest<T>) {
   const db = await openDatabase()
   return new Promise<T>((resolve, reject) => {
-    const request = action(db.transaction(table, write ? 'readwrite' : 'readonly').objectStore(table))
+    const transaction = db.transaction(table, write ? 'readwrite' : 'readonly')
+    transaction.oncomplete = transaction.onabort = transaction.onerror = () => db.close()
+    const request = action(transaction.objectStore(table))
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
+  })
+}
+
+// "Start over": deletes everything the app saved on this phone, the letter,
+// the answers, the language and every paper, as if it was just installed.
+export async function resetEverything() {
+  try {
+    for (const key of Object.keys(localStorage)) if (key.startsWith('replyby-')) localStorage.removeItem(key)
+  } catch {
+    // Storage blocked: nothing was saved there anyway.
+  }
+  await new Promise<void>((resolve) => {
+    const request = indexedDB.deleteDatabase('replyby')
+    request.onsuccess = request.onerror = request.onblocked = () => resolve()
   })
 }
 
@@ -158,6 +179,29 @@ export function saveMode(mode: ReadingMode) {
     // Not saved; the user will be asked again next time.
   }
 }
+
+// Progress on a reply, saved after every answer, so closing the app or tapping
+// back by mistake loses nothing. It belongs to one letter: reading a new
+// letter starts fresh.
+export type Progress = {
+  letter: string // which letter it belongs to (letterKey below)
+  pickedBoxes: string[] | null // MC 355: the boxes the person ticked
+  answers: Record<string, string> // each paper: photo, mail, none or later
+  renewal: Record<string, string> // the renewal form answers
+  renewalStep: string // "start", "done", or the question being asked
+  chosen: string[] // the photos going in the reply
+  fromPapers: Record<string, string> // renewal answers read off a paper: question -> paper name
+}
+export const letterKey = (letter: SavedLetter) => `${letter.letterType}|${letter.savedAt ?? ''}`
+export function loadProgress(letter: SavedLetter): Progress | null {
+  const progress = load<Progress>('replyby-progress')
+  return progress && progress.letter === letterKey(letter) ? progress : null
+}
+export const saveProgress = (progress: Progress | null) => save('replyby-progress', progress)
+
+// Which screen of the letter tab was open, so the app reopens there.
+export const loadView = () => load<string>('replyby-view')
+export const saveView = (view: string | null) => save('replyby-view', view)
 
 // Saves a changed event over the old one (used to attach proof later).
 export const updateEvent = (event: SavedEvent) => use('events', true, (s) => s.put(event))

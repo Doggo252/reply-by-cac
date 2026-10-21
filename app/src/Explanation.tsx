@@ -2,6 +2,7 @@
 // with a switch between English and Spanish.
 import { useEffect, useState } from 'react'
 import { askForExplanation, type Explanation as Result } from './readerA'
+import { getLanguage, t } from './language'
 
 type Language = 'english' | 'spanish'
 
@@ -14,7 +15,8 @@ const URGENCY_WORDS: Record<string, Record<Language, string>> = {
 }
 
 export default function Explanation({ facts }: { facts: Record<string, unknown> }) {
-  const [language, setLanguage] = useState<Language>('english')
+  // Starts in the language the person picked on the first screen.
+  const [language, setLanguage] = useState<Language>(getLanguage() === 'es' ? 'spanish' : 'english')
   const [result, setResult] = useState<Result | null>(null)
   const [state, setState] = useState<'loading' | 'done' | 'failed'>('loading')
 
@@ -48,9 +50,7 @@ export default function Explanation({ facts }: { facts: Record<string, unknown> 
       </div>
       {state === 'loading' && <p className="hint" role="status">{language === 'english' ? 'Writing…' : 'Escribiendo…'}</p>}
       {state === 'failed' && (
-        <p className="hint">
-          We couldn't explain it right now. The date and steps above are still right.
-        </p>
+        <p className="hint">{t("We couldn't explain it right now. The date and steps on your letter screen are still right.")}</p>
       )}
       {state === 'done' && result && (
         <>

@@ -1,13 +1,16 @@
 // "My papers": the receipt vault. Photos and files saved on this phone, each
 // with a fingerprint (its SHA-256 hash) taken the moment it was saved. If the
 // file were ever changed, its fingerprint would no longer match.
+// The language switch and "Start over" are at the bottom.
 import { useEffect, useState } from 'react'
 import { addPaper, listPapers, loadHelperLog, removePaper, saveHelperLog, type Paper } from './storage'
 import { fingerprint, shortPrint } from './fingerprint'
 import { savedOn } from './words'
 import { printOrSend } from './printOrSend'
+import { t } from './language'
+import StartOver from './StartOver'
 
-export default function Vault({ onShowResults }: { onShowResults: () => void }) {
+export default function Vault({ onShowResults, onChangeLanguage }: { onShowResults: () => void; onChangeLanguage: () => void }) {
   const [papers, setPapers] = useState<Paper[] | null>(null)
   const [saving, setSaving] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
@@ -18,7 +21,7 @@ export default function Vault({ onShowResults }: { onShowResults: () => void }) 
       setPapers(await listPapers())
     } catch (error) {
       console.error(error)
-      setProblem('This phone is not letting the app save. Private browsing can cause this.')
+      setProblem(t('This phone is not letting the app save. Private browsing can cause this.'))
       setPapers([])
     }
   }
@@ -38,36 +41,34 @@ export default function Vault({ onShowResults }: { onShowResults: () => void }) 
       await refresh()
     } catch (error) {
       console.error(error)
-      setProblem('We could not save that file. Please try again.')
+      setProblem(t('We could not save that file. Please try again.'))
     }
     setSaving(false)
   }
 
   async function remove(paper: Paper) {
-    if (!window.confirm(`Remove "${paper.name}" from this phone? This cannot be undone.`)) return
+    if (!window.confirm(t('Remove "{name}" from this phone? This cannot be undone.', { name: paper.name }))) return
     await removePaper(paper.id)
     refresh()
   }
 
   return (
     <>
-      <h1 className="page-title">My papers</h1>
-      <p className="lead">
-        Your replies, and photos of your papers and receipts, are kept here. They stay on this phone.
-      </p>
+      <h1 className="page-title">{t('My papers')}</h1>
+      <p className="lead">{t('Your replies, and photos of your papers and receipts, are kept here. They stay on this phone.')}</p>
       {problem && <p className="error">{problem}</p>}
 
       <label className="button primary">
-        {saving ? 'Saving…' : 'Take a photo'}
+        {saving ? t('Saving…') : t('Take a photo')}
         <input type="file" accept="image/*" capture="environment" onChange={add} hidden disabled={saving} />
       </label>
       <label className="button">
-        Choose a photo or PDF
+        {t('Choose a photo or PDF')}
         <input type="file" accept="image/*,application/pdf" onChange={add} hidden disabled={saving} />
       </label>
 
       {papers && papers.length === 0 && (
-        <p className="hint">Nothing here yet. When you take photos of papers or finish a reply, you'll find them here.</p>
+        <p className="hint">{t("Nothing here yet. When you take photos of papers or finish a reply, you'll find them here.")}</p>
       )}
       {papers?.map((paper) => (
         <PaperCard key={paper.id} paper={paper} onRemove={() => remove(paper)} />
@@ -75,14 +76,14 @@ export default function Vault({ onShowResults }: { onShowResults: () => void }) 
 
       {papers && papers.length > 0 && (
         <p className="hint">
-          The fingerprint is a code made from the file itself. If anyone changed the file, the code would change too.
+          {t('The fingerprint is a code made from the file itself. If anyone changed the file, the code would change too.')}
         </p>
       )}
 
       {helperLog && helperLog.length > 0 && (
         <div className="card">
-          <h2>What the AI helper did last time</h2>
-          <p className="small">One line per step: time, step, IDs, result, why, version. No private words.</p>
+          <h2>{t('What the AI helper did last time')}</h2>
+          <p className="small">{t('One line per step: time, step, IDs, result, why, version. No private words.')}</p>
           <ol className="action-log">
             {helperLog.map((line, i) => (
               <li key={i} className="log-record">{line}</li>
@@ -91,19 +92,26 @@ export default function Vault({ onShowResults }: { onShowResults: () => void }) 
           <button
             className="link danger"
             onClick={() => {
-              if (!window.confirm('Delete the AI helper log?')) return
+              if (!window.confirm(t('Delete the AI helper log?'))) return
               saveHelperLog(null)
               setHelperLog(null)
             }}
           >
-            Delete this log
+            {t('Delete this log')}
           </button>
         </div>
       )}
 
       <button className="button" onClick={onShowResults}>
-        How well ReplyBy works
+        {t('How well ReplyBy works')}
       </button>
+
+      <div className="settings">
+        <button className="button" onClick={onChangeLanguage}>
+          Language / Idioma
+        </button>
+        <StartOver />
+      </div>
     </>
   )
 }
@@ -126,19 +134,19 @@ function PaperCard({ paper, onRemove }: { paper: Paper; onRemove: () => void }) 
     <div className="card paper">
       <div className="paper-thumb">{isImage && url ? <img src={url} alt="" /> : 'PDF'}</div>
       <div>
-        <p className="paper-name">{paper.name}</p>
-        <p className="small">Saved {savedOn(paper.addedAt)}</p>
-        {unchanged === true && <p className="proof">✓ Never changed since you saved it</p>}
-        {unchanged === false && <p className="error">This file was changed after you saved it.</p>}
+        <p className="paper-name">{t(paper.name)}</p>
+        <p className="small">{t('Saved {date}', { date: savedOn(paper.addedAt) })}</p>
+        {unchanged === true && <p className="proof">{t('✓ Never changed since you saved it')}</p>}
+        {unchanged === false && <p className="error">{t('This file was changed after you saved it.')}</p>}
         <p className="small">
-          Code <span className="fingerprint">{shortPrint(paper.sha256)}</span>
+          {t('Code')} <span className="fingerprint">{shortPrint(paper.sha256)}</span>
         </p>
         <div className="event-bottom">
           <button className="link" onClick={() => printOrSend(paper)}>
-            Print or send
+            {t('Print or send')}
           </button>
           <button className="link danger" onClick={onRemove}>
-            Remove
+            {t('Remove')}
           </button>
         </div>
       </div>

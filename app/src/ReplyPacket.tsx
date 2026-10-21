@@ -21,12 +21,13 @@ import { buildPacket, paperFactsFrom, type AboutYou, type Attachment, type Packe
 import { addEvent, addPaper, loadAbout, loadDrafts, saveAbout, type Paper, type SavedLetter } from './storage'
 import { todayOnThisPhone } from './deadlines'
 import { shortPrint } from './fingerprint'
-import { FACT_LABELS, inWords, savedOn } from './words'
+import { factLabel, inWords, savedOn } from './words'
+import { t } from './language'
 import SignaturePad from './SignaturePad'
 import PaperSteps from './PaperSteps'
 import { printOrSend } from './printOrSend'
 import { usePapers } from './usePapers'
-import { CoverPreview, PhotoPreview, letterValue } from './ReplyPreview'
+import { CoverPreview, PhotoPreview, RenewalPreview, StatementPreview, letterValue } from './ReplyPreview'
 
 type Step = 'about' | 'papers' | 'check' | 'sign' | 'done'
 
@@ -40,7 +41,7 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
   const drafts = loadDrafts()
   const isStop = letter.letterType === 'MC_239A'
   // The papers: the same screens and answers as the AI helper (usePapers.ts).
-  const { included, statements, later, papers, chosen, stepsProps } = usePapers(letter)
+  const { included, statements, later, papers, chosen, stepsProps, renewalForm, renewal, fromPapers } = usePapers(letter)
   const [hearing, setHearing] = useState(isStop && withHearing)
   const [reason, setReason] = useState(drafts?.hearing_reason ?? '')
   const [undoLetter, setUndoLetter] = useState(isStop && !!drafts)
@@ -73,9 +74,10 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
     setWorking(true)
     setProblem(null)
     try {
-      const [hearingRequest, renewalSignaturePage] = await Promise.all([
+      const [hearingRequest, renewalSignaturePage, renewalFormBytes] = await Promise.all([
         fetchForm('/forms/hearing-request.pdf'),
         fetchForm('/forms/mc210rv-signature-page.pdf'),
+        renewalForm ? fetchForm('/forms/mc210rv.pdf') : Promise.resolve(undefined),
       ])
       const attachments: Attachment[] = await Promise.all(
         papers
@@ -92,9 +94,10 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
         toSend: included,
         statements,
         later,
+        renewal: renewalForm ? renewal : undefined,
         attachments,
         signature,
-        forms: { hearingRequest, renewalSignaturePage },
+        forms: { hearingRequest, renewalSignaturePage, renewalForm: renewalFormBytes },
       }
       const bytes = await buildPacket(input, mismatches ?? [], true)
       const name = `Reply packet, ${savedOn(new Date().toISOString())}.pdf`
@@ -103,7 +106,7 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
       go('done')
     } catch (error) {
       console.error(error)
-      setProblem(error instanceof Error ? error.message : 'We could not make your reply. Please try again.')
+      setProblem(error instanceof Error ? error.message : t('We could not make your reply. Please try again.'))
     }
     setWorking(false)
   }
@@ -125,24 +128,24 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
 
   if (step === 'papers') {
     return (
-      <PaperSteps {...stepsProps} step="Step 1 of 4">
+      <PaperSteps {...stepsProps} step={t('Step 1 of 4')}>
         {isStop && drafts && (
           <button className={`choice ${undoLetter ? 'on' : ''}`} onClick={() => setUndoLetter(!undoLetter)}>
-            <strong>{undoLetter ? '✓ ' : ''}Add a letter asking the county to fix their mistake</strong>
-            <span>We wrote it from what you told us you sent.</span>
+            <strong>{undoLetter ? '✓ ' : ''}{t('Add a letter asking the county to fix their mistake')}</strong>
+            <span>{t('We wrote it from what you told us you sent.')}</span>
           </button>
         )}
 
         {isStop && (
           <>
             <button className={`choice ${hearing ? 'on' : ''}`} onClick={() => setHearing(!hearing)}>
-              <strong>{hearing ? '✓ ' : ''}Also ask for a hearing</strong>
-              <span>Only if you think the county got it wrong. A judge will look at it.</span>
+              <strong>{hearing ? '✓ ' : ''}{t('Also ask for a hearing')}</strong>
+              <span>{t('Only if you think the county got it wrong. A judge will look at it.')}</span>
             </button>
             {hearing && (
               <label className="field">
-                <span>Why do you think the county got it wrong?</span>
-                <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="For example: I mailed my papers on time." />
+                <span>{t('Why do you think the county got it wrong?')}</span>
+                <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('For example: I mailed my papers on time.')} />
               </label>
             )}
           </>
@@ -156,14 +159,14 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
           }}
           disabled={hearing && !reason.trim()}
         >
-          Next
+          {t('Next')}
         </button>
-        {hearing && !reason.trim() && <p className="hint">Tell us why, or untick the hearing.</p>}
+        {hearing && !reason.trim() && <p className="hint">{t('Tell us why, or untick the hearing.')}</p>}
         <button className="link" onClick={onBack}>
-          Back to my letter
+          {t('Back to my letter')}
         </button>
         <button className="link" onClick={() => go('about')}>
-          Change my name or address
+          {t('Change my name or address')}
         </button>
       </PaperSteps>
     )
@@ -173,14 +176,14 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
     const passed = mismatches !== null && mismatches.length === 0
     return (
       <>
-        <span className="step">Step 2 of 4</span>
-        <h1 className="page-title">Look over your reply</h1>
+        <span className="step">{t('Step 2 of 4')}</span>
+        <h1 className="page-title">{t('Look over your reply')}</h1>
 
         {passed && !changing && (
           <>
-            <p className="lead">This is what we'll send to the county. Read it through. You can change anything before you sign.</p>
+            <p className="lead">{t("This is what we'll send to the county. Read it through. You can change anything before you sign.")}</p>
             <p className="all-good" role="status">
-              ✓ The dates and numbers match your letter.
+              {t('✓ The dates and numbers match your letter.')}
             </p>
 
             <CoverPreview
@@ -194,36 +197,47 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
               hearing={isStop && hearing}
               undoLetter={isStop && undoLetter && !!drafts}
             />
+            {renewalForm && (
+              <RenewalPreview
+                answers={renewal}
+                fromPapers={fromPapers}
+                onChange={() => {
+                  stepsProps.renewal?.onStep('review')
+                  go('papers')
+                }}
+              />
+            )}
+            {statements.length > 0 && <StatementPreview statements={statements} />}
             <PhotoPreview photos={papers.filter((p) => chosen.includes(p.id))} />
 
             {isStop && undoLetter && drafts && (
               <div className="card preview">
-                <p className="preview-label">Then your letter asking the county to fix their mistake</p>
+                <p className="preview-label">{t('Then your letter asking the county to fix their mistake')}</p>
                 <p className="draft-text">{drafts.rescission_letter}</p>
               </div>
             )}
             {isStop && hearing && (
               <div className="card preview">
-                <p className="preview-label">Then your hearing request</p>
-                <p>Why you think the county got it wrong:</p>
+                <p className="preview-label">{t('Then your hearing request')}</p>
+                <p>{t('Why you think the county got it wrong:')}</p>
                 <p className="draft-text">{reason}</p>
               </div>
             )}
 
             <button className="button primary big" onClick={() => go('sign')}>
-              It looks right. Next, sign it
+              {t('It looks right. Next, sign it')}
             </button>
-            <p className="hint">Want to change something?</p>
+            <p className="hint">{t('Want to change something?')}</p>
             <div className="button-row">
               <button className="button" onClick={() => go('papers')}>
-                The papers
+                {t('The papers')}
               </button>
               <button className="button" onClick={() => setChanging(true)}>
-                A date or number
+                {t('A date or number')}
               </button>
             </div>
             <button className="link" onClick={() => go('about')}>
-              My name or address
+              {t('My name or address')}
             </button>
           </>
         )}
@@ -232,30 +246,31 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
           <>
             {mismatches && mismatches.length > 0 ? (
               <p className="error" role="alert">
-                {mismatches.length === 1 ? 'One box does not match your letter.' : `${mismatches.length} boxes do not match your letter.`}{' '}
-                Fix the yellow {mismatches.length === 1 ? 'box' : 'boxes'}.
+                {mismatches.length === 1
+                  ? t('One box does not match your letter. Fix the yellow box.')
+                  : t('{n} boxes do not match your letter. Fix the yellow boxes.', { n: mismatches.length })}
               </p>
             ) : (
-              <p className="lead">Change what is wrong, then tap Check again.</p>
+              <p className="lead">{t('Change what is wrong, then tap Check again.')}</p>
             )}
             {Object.keys(paperFacts).map((field) => {
               const wrong = mismatches?.find((m) => m.field === field)
               return (
                 <label key={field} className={`fact ${wrong ? 'flagged' : ''}`}>
-                  <span className="fact-label">{FACT_LABELS[field] ?? field}</span>
+                  <span className="fact-label">{factLabel(field)}</span>
                   <input value={paperFacts[field]} onChange={(e) => setPaperFacts({ ...paperFacts, [field]: e.target.value })} />
-                  {wrong && <span className="fact-flag">Your letter says: {letterValue(field, wrong.fact)}</span>}
+                  {wrong && <span className="fact-flag">{t('Your letter says: {value}', { value: letterValue(field, wrong.fact) })}</span>}
                 </label>
               )
             })}
             <button className="button primary" onClick={() => runCheck()}>
-              Check again
+              {t('Check again')}
             </button>
           </>
         )}
 
         <button className="link" onClick={() => go('papers')}>
-          Back
+          {t('Back')}
         </button>
       </>
     )
@@ -264,26 +279,27 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
   if (step === 'sign') {
     return (
       <>
-        <span className="step">Step 3 of 4</span>
-        <h1 className="page-title">Sign your reply</h1>
-        <p className="lead">Sign in the box with your finger. When you sign, you're saying everything in your reply is true.</p>
+        <span className="step">{t('Step 3 of 4')}</span>
+        <h1 className="page-title">{t('Sign your reply')}</h1>
+        <p className="lead">{t("Sign in the box with your finger. When you sign, you're saying everything in your reply is true.")}</p>
         <SignaturePad onChange={setSignature} />
         {problem && <p className="error">{problem}</p>}
         <button className="button primary big" onClick={makePacket} disabled={!signature || working}>
-          {working ? 'Putting your reply together…' : 'Sign and finish'}
+          {working ? t('Putting your reply together…') : t('Sign and finish')}
         </button>
         <button className="link" onClick={() => go('check')}>
-          Back
+          {t('Back')}
         </button>
       </>
     )
   }
 
-  return <Done paper={made!} letterType={letter.letterType} onBack={onBack} />
+  return <Done paper={made!} letterType={letter.letterType} step={t('Step 4 of 4')} onBack={onBack} />
 }
 
 // The packet is made. Print it or send it, then mark it sent.
-export function Done({ paper, letterType, onBack }: { paper: Paper; letterType?: string; onBack: () => void }) {
+// `step` is "Step 4 of 4" in the step-by-step reply; the AI helper has no steps.
+export function Done({ paper, letterType, step, onBack }: { paper: Paper; letterType?: string; step?: string; onBack: () => void }) {
   const [sent, setSent] = useState(false)
 
   async function markSent() {
@@ -299,35 +315,35 @@ export function Done({ paper, letterType, onBack }: { paper: Paper; letterType?:
 
   return (
     <>
-      <span className="step">Step 4 of 4</span>
-      <h1 className="page-title">Your reply is ready</h1>
-      <p className="all-good">✓ We saved it in My papers</p>
+      {step && <span className="step">{step}</span>}
+      <h1 className="page-title">{t('Your reply is ready')}</h1>
+      <p className="all-good">{t('✓ We saved it in My papers')}</p>
       <button className="button primary big" onClick={() => printOrSend(paper)}>
-        Print it or send it
+        {t('Print it or send it')}
       </button>
       <div className="card">
-        <h2>Now send it to the county</h2>
+        <h2>{t('Now send it to the county')}</h2>
         <ol className="checklist">
-          <li>Print it.</li>
+          <li>{t('Print it.')}</li>
           <li>
             {letterType === 'MC210_RV'
-              ? 'Put it in an envelope with your renewal form, the property form, and any paper copies you didn\'t take a photo of.'
-              : 'Put it in an envelope with any paper copies you didn\'t take a photo of.'}
+              ? t("Put it in an envelope. Your filled-in renewal form is part of it. Add any paper copies you didn't take a photo of, and the property form if the county sent you one.")
+              : t("Put it in an envelope with any paper copies you didn't take a photo of.")}
           </li>
-          <li>Mail it, fax it, or take it to your county office.</li>
-          <li>If you go in person, ask them to stamp a copy with today's date. Keep that copy. It's your proof.</li>
+          <li>{t('Mail it, fax it, or take it to your county office.')}</li>
+          <li>{t("If you go in person, ask them to stamp a copy with today's date. Keep that copy. It's your proof.")}</li>
         </ol>
       </div>
       {sent ? (
-        <p className="all-good">✓ We wrote down that you sent it on {inWords(todayOnThisPhone(), false)}</p>
+        <p className="all-good">{t('✓ We wrote down that you sent it on {date}', { date: inWords(todayOnThisPhone(), false) })}</p>
       ) : (
         <button className="button" onClick={markSent}>
-          I sent it today
+          {t('I sent it today')}
         </button>
       )}
-      <p className="small">Saved with the code {shortPrint(paper.sha256)}. It shows later that your reply was never changed.</p>
+      <p className="small">{t('Saved with the code {code}. It shows later that your reply was never changed.', { code: shortPrint(paper.sha256) })}</p>
       <button className="link" onClick={onBack}>
-        Back to my letter
+        {t('Back to my letter')}
       </button>
     </>
   )
@@ -346,7 +362,7 @@ export function AboutForm({ about, letterText, onSave, onBack }: {
   )
   const field = (key: keyof AboutYou, label: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <label className="field">
-      <span>{label}</span>
+      <span>{t(label)}</span>
       <input value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} required {...extra} />
     </label>
   )
@@ -357,11 +373,11 @@ export function AboutForm({ about, letterText, onSave, onBack }: {
         onSave(form)
       }}
     >
-      <h1 className="page-title">About you</h1>
-      <p className="lead">For the forms. This stays on your phone and is never sent to the AI.</p>
+      <h1 className="page-title">{t('About you')}</h1>
+      <p className="lead">{t('For the forms. This stays on your phone and is never sent to the AI.')}</p>
       {(guessed.name || guessed.street) && (
         <p className="hint">
-          We filled this in from your letter. Please check your address. If you moved, type your new one.
+          {t('We filled this in from your letter. Please check your address. If you moved, type your new one.')}
         </p>
       )}
       {field('name', 'Your full name', { autoComplete: 'name' })}
@@ -370,7 +386,7 @@ export function AboutForm({ about, letterText, onSave, onBack }: {
       {field('city', 'City', { autoComplete: 'address-level2' })}
       {field('zip', 'ZIP code', { inputMode: 'numeric', autoComplete: 'postal-code' })}
       <div className="field">
-        <span>Your county</span>
+        <span>{t('Your county')}</span>
         {(['Santa Clara', 'San Mateo'] as const).map((county) => (
           <button
             type="button"
@@ -378,15 +394,15 @@ export function AboutForm({ about, letterText, onSave, onBack }: {
             className={`choice ${form.county === county ? 'on' : ''}`}
             onClick={() => setForm({ ...form, county })}
           >
-            <strong>{form.county === county ? '✓ ' : ''}{county} County</strong>
+            <strong>{form.county === county ? '✓ ' : ''}{t('{county} County', { county })}</strong>
           </button>
         ))}
       </div>
       <button type="submit" className="button primary">
-        Save
+        {t('Save')}
       </button>
       <button type="button" className="button" onClick={onBack}>
-        Back to my letter
+        {t('Back to my letter')}
       </button>
     </form>
   )
@@ -394,6 +410,6 @@ export function AboutForm({ about, letterText, onSave, onBack }: {
 
 export async function fetchForm(path: string): Promise<Uint8Array> {
   const response = await fetch(path)
-  if (!response.ok) throw new Error('A form could not be loaded. Please try again with internet.')
+  if (!response.ok) throw new Error(t('A form could not be loaded. Please try again with internet.'))
   return new Uint8Array(await response.arrayBuffer())
 }

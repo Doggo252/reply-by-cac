@@ -12,6 +12,8 @@ import { check } from './checker'
 import { findMistakes, type Finding, type TimelineEvent } from './contradictions'
 import { inventedDates } from './grounding'
 import { paperFactsFrom, type PaperFacts } from './packet'
+import { valueInText } from './proofRead'
+import { blankFacts, FROM_PAPERS, PARENT } from './renewalForm'
 
 export type ToolResult = { ok: boolean; reason?: string; [key: string]: unknown }
 
@@ -72,6 +74,12 @@ export type AgentWorld = {
   review(view: ReviewView): Promise<ReviewAnswer | null> // null: cancelled
   sign(): Promise<Uint8Array | null> // straight from the signature pad; null: declined
   build(packet: Packet, drafts: Draft[], signature: Uint8Array): Promise<string> // when it was saved
+  // Only when the reply includes the renewal form: its answers so far, and a
+  // way to fill in the blanks (the review screen then shows them).
+  renewal?: {
+    answers(): Record<string, string>
+    fill(found: { question: string; value: string; paperId: string; paperName: string }[]): void
+  }
 }
 
 // What the tools remember during one run.
@@ -154,6 +162,8 @@ async function saveDraft(world: AgentWorld, state: RunState, draft: Draft): Prom
   return { ok: true, draft_id: draft.id }
 }
 
+export { blankFacts }
+
 export const TOOLS: Record<string, Tool> = {
   get_letter: {
     whatItDoes:
@@ -218,6 +228,39 @@ export const TOOLS: Record<string, Tool> = {
     async run(input, world) {
       const id = await world.takePhoto(String(input.paper_name ?? ''))
       return id === null ? refuse('cancelled') : { ok: true, paper_id: id }
+    },
+  },
+
+  fill_renewal_answers: {
+    whatItDoes:
+      "for renewal forms only, writes facts read on the person's papers into the renewal form (MC 210 RV): the monthly Social Security amount, the Medicare Part B premium, the pension amount, the bank's name and balance, the Medicare number, and the life insurance cash value. Each answer says which paper it came from. It only fills answers the person left blank.",
+    inputs: { letter_id: 'text', answers: 'list' },
+    async run(input, world) {
+      if (!isLetter(world, input)) return refuse('no such letter')
+      if (!world.renewal) return refuse('only for renewal forms')
+      const given = Array.isArray(input.answers) ? (input.answers as Input[]) : []
+      const current = world.renewal.answers()
+      const papers = await world.listPapers()
+      const accepted: { question: string; value: string; paperId: string; paperName: string }[] = []
+      const refused: { question: string; reason: string }[] = []
+      for (const answer of given) {
+        const question = String(answer.question ?? '')
+        const value = String(answer.value ?? '').trim()
+        const paper = papers.find((p) => p.id === String(answer.paper_id ?? ''))
+        const no = (reason: string) => refused.push({ question, reason })
+        if (!FROM_PAPERS.includes(question)) no('not a fact printed on a paper')
+        else if (!paper) no('no such paper')
+        else if (current[question] || accepted.some((a) => a.question === question)) no('the person already answered this')
+        else if (!valueInText(question, value, (await world.paperText(paper.id)) ?? '')) no('that value is not printed on that paper')
+        else accepted.push({ question, value, paperId: paper.id, paperName: paper.name })
+      }
+      if (accepted.length > 0) world.renewal.fill(accepted)
+      const after: Record<string, string> = { ...current }
+      for (const a of accepted) {
+        after[a.question] = a.value
+        after[PARENT[a.question]] ||= 'yes'
+      }
+      return { ok: true, accepted: accepted.map((a) => a.question), refused, still_blank: blankFacts(after) }
     },
   },
 
@@ -391,7 +434,7 @@ export const TOOLS: Record<string, Tool> = {
   // The locked tool (TOOLS.md, Section 3). Every failed precondition is a hard stop.
   build_packet: {
     whatItDoes:
-      'assembles the final response packet and saves it to My papers, once. The packet contains the approved papers plus the same forms the manual flow makes for that letter type: MC 239 A: the cover sheet, the signed hearing request draft if the user kept it, and the signed restore letter draft if one was approved and kept; MC 355: the cover sheet; MC 210 RV (renewal): the cover sheet and the signed page 17.',
+      "assembles the final response packet and saves it to My papers, once. The packet contains the approved papers plus the same forms the manual flow makes for that letter type: MC 239 A: the cover sheet, the signed hearing request draft if the user kept it, and the signed restore letter draft if one was approved and kept. When the letter asks for the renewal form, also the renewal form filled in from the person's answers, signed on page 17; MC 355: the cover sheet; MC 210 RV (renewal): the cover sheet and the renewal form filled in from the person's answers, signed on page 17; All letters: a signed statement for the papers the person said they do not have, if any.",
     inputs: { packet_id: 'text' },
     async run(input, world, state) {
       const stop = (why: string): never => {

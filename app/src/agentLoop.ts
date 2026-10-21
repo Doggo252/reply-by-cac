@@ -9,7 +9,7 @@
 // The rules come from Neil's agent/TOOLS.md: only tools listed there run,
 // every result is redacted before Claude sees it (Section 4), and the limits
 // in Section 5 end the run with a hard stop.
-import { HardStop, NORMAL_REASONS, TOOLS, type AgentWorld, type RunState, type ToolResult } from './agentTools'
+import { blankFacts, HardStop, NORMAL_REASONS, TOOLS, type AgentWorld, type RunState, type ToolResult } from './agentTools'
 import { redact } from './redact'
 
 // TOOLS.md, Section 5.
@@ -92,10 +92,13 @@ export async function runAgent(
   onLog: (line: LogLine) => void
 ): Promise<RunEnd> {
   // The first message is only which letter to work on. What to do comes from
-  // Neil's prompt, which the backend adds.
-  const messages: Message[] = [
-    { role: 'user', content: JSON.stringify({ letter_id: world.letter.id, letter_type: world.letter.letterType }) },
-  ]
+  // Neil's prompt, which the backend adds. When the reply has the renewal form
+  // in it (a renewal, or a stop letter that asks for it), it also says the app
+  // fills it in, and which facts a paper could still fill in. Without this,
+  // the Oct 20 run on a stop letter only saw "MC_239A".
+  const start: Record<string, unknown> = { letter_id: world.letter.id, letter_type: world.letter.letterType }
+  if (world.renewal) start.renewal_form = { filled_in_by_app: true, blank_facts: blankFacts(world.renewal.answers()) }
+  const messages: Message[] = [{ role: 'user', content: JSON.stringify(start) }]
   let toolCalls = 0
   let refusalsInARow = 0
   let names: string[] = []

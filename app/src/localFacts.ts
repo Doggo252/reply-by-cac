@@ -105,16 +105,19 @@ function fixPattern(raw: string): string | null {
 
 // The case number, and whether any characters had to be repaired to find it.
 // A repaired number can be repaired wrong, so the app asks the user to check it.
+// An O is checked too: the text reader often reads a Q or a D as an O
+// ("7Q2M118" came out "7O2M118" in the Oct 20 test kit), and both are letters,
+// so the pattern can't tell.
 export function findCaseNumber(text: string): { value: string | null; repaired: boolean } {
   // 1. After a "Case Number" label (on a CalSAWS notice, the SAWS one; the
   //    CalHEERS number is all digits and never fits the pattern).
   for (const match of text.matchAll(/case\s*number\s*:?\s*_*([^\s]{5,12})/gi)) {
     const fixed = fixCaseNumber(match[1])
-    if (fixed) return { value: fixed, repaired: fixed !== match[1].replace(/^_+/, '') }
+    if (fixed) return { value: fixed, repaired: fixed !== match[1].replace(/^_+/, '') || fixed.includes('O') }
   }
   // 2. Anywhere: a clean #L#L### on its own.
   const loose = /(?<![A-Za-z0-9])\d[A-Z]\d[A-Z]\d{3}(?![A-Za-z0-9])/.exec(text)
-  return { value: loose ? loose[0] : null, repaired: false }
+  return { value: loose ? loose[0] : null, repaired: !!loose && loose[0].includes('O') }
 }
 
 // Words that start the next label. When the photo puts two columns on one
@@ -169,7 +172,8 @@ export function findWorkerFax(text: string): string | null {
 //   points the person there.
 export function findAsk(text: string, letterType: string): string | null {
   if (letterType === 'MC_239A') {
-    const start = /you\s+did\s+not\s/i.exec(text)
+    // "did" is sometimes misread ("You dig Not send", Oct 20 run).
+    const start = /you\s+d\w{1,2}\s+n[o0]t\s/i.exec(text)
     if (!start) return null
     // The reason ends at its first full stop, or at the start of the letter's
     // standard wording if the full stop was misread.
@@ -182,7 +186,11 @@ export function findAsk(text: string, letterType: string): string | null {
     // sometimes misread ("Lotraine Morelos" for "Lorraine Morales").
     const name = nameAfter(text, /case\s*name/) ?? nameAfter(text, /notice\s*for/)
     if (name) ask = withoutName(ask, name)
-    return ask.replace(/\s+/g, ' ').replace(/\s+([.,;:])/g, '$1').trim()
+    return ask
+      .replace(/^you\s+\S+\s+n[o0]t/i, 'You did not')
+      .replace(/\s+/g, ' ')
+      .replace(/\s+([.,;:])/g, '$1')
+      .trim()
   }
   if (letterType === 'MC355' && /box\s+checked/i.test(text)) {
     return 'The papers or information with a checked box on the other pages of this letter.'

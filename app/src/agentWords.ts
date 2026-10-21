@@ -2,6 +2,7 @@
 // so they can be tested.
 import type { LogLine } from './agentLoop'
 import type { Draft } from './agentTools'
+import { t } from './language'
 
 // What each tool is doing, in words a person reads on the live log.
 const DOING: Record<string, string> = {
@@ -18,15 +19,18 @@ const DOING: Record<string, string> = {
   open_review_screen: 'Showing you your reply',
   ask_user_to_sign: 'Asking you to sign',
   build_packet: 'Making your final reply',
+  fill_renewal_answers: 'Filling in your renewal form from your papers',
 }
 
-// One log line, in plain words: "✓ Reading your letter".
+// One log line, in plain words: "✓ Reading your letter", in the person's language.
 export function logWords(line: LogLine): string {
-  const doing = DOING[line.tool] ?? (line.tool === '(stop)' ? 'Stopped' : `Tried "${line.tool}"`)
+  // The helper itself stopping (no tool): just "■ Stopped here".
+  if (line.tool === '(stop)') return `■ ${t('Stopped here')}`
+  const doing = DOING[line.tool] ? t(DOING[line.tool]) : t('Tried "{tool}"', { tool: line.tool })
   if (line.outcome === 'ok') return `✓ ${doing}`
-  if (line.outcome === 'stop') return `■ ${doing}: stopped`
-  if (line.reason === 'cancelled' || line.reason === 'declined') return `${doing}: you said not now`
-  return `↻ ${doing}: that didn't work, trying another way`
+  if (line.outcome === 'stop') return t('■ {doing}: stopped', { doing })
+  if (line.reason === 'cancelled' || line.reason === 'declined') return t('{doing}: you said not now', { doing })
+  return t("↻ {doing}: that didn't work, trying another way", { doing })
 }
 
 // TOOLS.md, Section 6: the exact line the spec asks for.

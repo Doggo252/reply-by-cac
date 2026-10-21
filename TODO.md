@@ -157,9 +157,43 @@ low. Only one more full test run, near submission.**
 ## Week 6: video and submission
 
 - [ ] **Mon 10/19 (0h)** Nothing.
-- [ ] **Tue 10/20 (0.5h)** [N] Mom's test, then send Claude the list.
-      [C] fixes it and writes the README. [N] checks the fixes on the phone
-      and commits.
+- [x] **Tue 10/20** [N] Mom's first test. The list: the scanner missed printed
+      fields; the renewal help only gave a checklist and a signature page; the
+      other letters only collected photos; too many things to tap; no autosave,
+      language choice or reset.
+- [x] **Tue 10/20** [C] built from that list (Neil's decisions):
+  - [x] The app fills in the real MC 210 RV from plain questions, one at a
+        time, signed on page 17 (also for a stop letter that asks for it).
+  - [x] Reads amounts off photos (Social Security, Part B, bank, Medicare
+        number, pension, life insurance) for the person to confirm.
+  - [x] Checks every photo: readable, right paper, their name, within 2 months.
+  - [x] Signed statement page for papers the person does not have.
+  - [x] Scanner unsure: choices found on the letter, where to look, the
+        letter up close. Case numbers with an O are checked.
+  - [x] Autosave, phone back button, "Start over".
+  - [x] Simpler letter screen: one big button, one "More help" screen.
+  - [x] Language screen first; every screen in Spanish (letters to the
+        county stay in English).
+  - [x] The agent's new `fill_renewal_answers` tool (TOOLS.md and agent.md
+        lines written from Neil's answers) and its code.
+  - [x] Test kit: `data/synthetic/test-kit.pdf` (make it with
+        `data/make_test_kit.py`). Now a real 21-page renewal packet, then
+        her own papers, no "sample" marks.
+  - [x] AI or phone only: asked once, on the first screen, with what each
+        can do. "Why use ReplyBy?" (vs. BenefitsCal) on "Other ways to send it"
+        and in the script.
+  - [x] [C] Five test runs (renewal, MC 355, stop letter with AI; stop letter
+        phone-only in Spanish; the kit from "Start over"). About 15 bugs
+        fixed; see `AI-USE.md`. 213 app tests, 119 Python tests, build OK.
+- [ ] **Tue 10/20** [N] Review the changed files, commit and push, wait for
+      Render to rebuild, then tap "Start over" on the phone before handing
+      it to Mom.
+- [ ] **Tue 10/20** [N] Mom's second test with the test kit and role card.
+- [ ] [N] Optional: `prompts/agent.md` step 3c says "renewal forms only". The
+      AI sometimes skips it for a stop letter that asks for the renewal form.
+      The app now says `renewal_form` in the first message, and the phone
+      fills blanks from photos itself, so this is not urgent.
+- [ ] [C] README (moved to whenever Neil asks).
 - [ ] **Wed 10/21 (1h)** [N] Submission write-up, plus the AI disclosure
       copied from `AI-USE.md`.
 - [ ] **Thu 10/22 (2h)** [N] Record the app on a phone stand (the script's
@@ -179,6 +213,10 @@ low. Only one more full test run, near submission.**
   Sunday is the only backup.
 - **Render's free plan sleeps after about 15 minutes.** Open the site a minute
   before recording and before submitting.
+- **The AI helper's new form-filling tool has not had a real Gemini run.**
+  Do one AI-mode renewal run before recording.
+- **A fresh MC 210 RV instead of the county's pre-filled one.** It is the same
+  state form; worth asking the county or a clinic if they accept it.
 - **Reader A misses dates** (notice date only 68%). The confirm screen
   catches it, but the user has to type them. No prompt rework before
   submission.

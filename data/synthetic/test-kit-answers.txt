@@ -1,0 +1,5 @@
+What the app should find:
+  Renewal letter: notice 2026-10-10, due 2026-12-09, case 7Q2M118, worker Ana Ruiz (408) 555-0188
+  Social Security letter: $1,240.00 a month, Part B $185.00
+  Bank statement: Golden State Credit Union, ending balance $2,312.45
+  Medicare card: 1EG4-TE5-MK73

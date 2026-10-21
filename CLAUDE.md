@@ -121,7 +121,7 @@ Anything else is "unknown" and gets the generic path.
 **Forms the app fills**
 - State hearing request (the form on the NA Back 9).
 - MC 355 response with attachments.
-- MC 210 RV: do not retype the packet. Produce a checklist of sections to answer (including the property supplement), a signature page, and a cover sheet with case number and page index.
+- MC 210 RV: the app asks the form's questions in plain words, one at a time, and fills in the official fillable MC 210 RV (pages 1 to 17, signed on page 17), plus a cover letter with a page index. Neil's decision on Oct 20, replacing the earlier "do not retype the packet" plan after a user test showed the checklist did not help someone who had only the cover letter. The property supplement is not filled (no template); the person is asked about it.
 - Rescission request letter (generated, cites the rules above).
 - MC 382 Appointment of Authorized Representative (next version).
 

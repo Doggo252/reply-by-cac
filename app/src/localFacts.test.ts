@@ -50,6 +50,10 @@ test('a garbled case number is repaired, and marked as repaired', () => {
   expect(findCaseNumber('Case Number: 9B7R012')).toEqual({ value: '9B7R012', repaired: false })
 })
 
+test('asks the person to check a case number with an O, since a Q or D is often read as O', () => {
+  expect(findCaseNumber('Case number: 7O2M118')).toEqual({ value: '7O2M118', repaired: true })
+})
+
 test('the all-digit CalHEERS number is skipped for the SAWS one', () => {
   expect(findCaseNumber('CALHEERS CASE NUMBER: 28958444\nSAWS CASE NUMBER: 9S4Y593').value).toBe('9S4Y593')
 })
@@ -115,6 +119,14 @@ test('MC 239 A reason: a misread copy of the name is taken out', () => {
   const text = 'CASE NAME: Lorraine Morales\nYou did not send the following information we asked for: life Lotraine Morelos\ninsurance policy; retirement account statement.'
   expect(findAsk(text, 'MC_239A')).toBe(
     'You did not send the following information we asked for: life insurance policy; retirement account statement.',
+  )
+})
+
+// From the Oct 20 run, phone only: "did" was read as "dig".
+test('MC 239 A reason: "did" misread', () => {
+  const text = 'The reason for this denial/discontinuance is:\nYou dig Not send the following information we asked for: bank Statements for the last 3 months;\nProof of income.'
+  expect(findAsk(text, 'MC_239A')).toBe(
+    'You did not send the following information we asked for: bank Statements for the last 3 months; Proof of income.',
   )
 })
 

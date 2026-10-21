@@ -16,33 +16,68 @@ function nameAfterLabel(text: string): string | null {
   return null
 }
 
-// "6499 Castro St", "5212 Alameda Ave" or "8966 Alameda Ave Apt 23".
+// The photo reader often joins the address with the box beside it on the
+// same line ("1240 Broadway Notice date: October 10, 2026"), so a line is cut
+// where one of the box's labels starts.
+const BOX_LABEL = /\b(?:notice\s*date|case\s*number|case\s*name|worker\s*(?:name|number|id|telephone)|telephone\s*number|customer\s*id|calheers|saws)\b.*$/i
+const clean = (line: string) => line.replace(BOX_LABEL, '')
+
+// "6499 Castro St", "5212 Alameda Ave" or "8966 Alameda Ave Apt 23", anywhere on a line.
 const STREET = /\b\d{2,6}[ \t]+(?:[A-Z][a-z]+[ \t]+){1,3}(?:St|Ave|Rd|Dr|Blvd|Way|Ln|Ct|Pl)\b\.?(?:[ \t]+(?:Apt|Unit|#)[ \t]*\w+)?/
 // A street with no "St" or "Ave" ("1240 Broadway", "3323 El Camino Real"),
-// counted only when the city line comes right after it.
-const PLAIN_STREET = /^[ \t]*(\d{2,6}[ \t]+[A-Z][A-Za-z]+(?:[ \t]+[A-Z][A-Za-z]+){0,3})[ \t]*$(?=\n[^\n]*\bCA[ \t]+9\d{4})/m
-// "Redwood City, CA 94063-2342" (the comma is sometimes missing).
-const CITY = /\b([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){0,2}),?[ \t]+CA[ \t]+(9\d{4})/
+// only when it is the whole line.
+const PLAIN_STREET = /^[ \t]*(\d{2,6}[ \t]+[A-Z][A-Za-z]+(?:[ \t]+[A-Z][A-Za-z]+){0,3})[ \t]*$/
+// "Redwood City, CA 94063-2342". The comma is sometimes missing, and the
+// reader sometimes writes "ca" or garbles the ZIP code ("ca gq 086"): then
+// the city is still kept, and the person types the ZIP.
+const CITY = /\b([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){0,2}),?[ \t]+(?:CA|Ca|ca)\b[ \t]*([^\n]*)/
 
-// The county's own office address is printed at the top, so the person's
-// address is the first one after their name.
+type Address = { line: number; street: string; city: string; zip: string | null }
+
+// Every street line with a city line right under it.
+function addresses(lines: string[]): Address[] {
+  const found: Address[] = []
+  lines.forEach((raw, i) => {
+    const line = clean(raw)
+    const street = STREET.exec(line)?.[0] ?? PLAIN_STREET.exec(line)?.[1]
+    const city = i + 1 < lines.length ? CITY.exec(clean(lines[i + 1])) : null
+    if (!street || !city) return
+    const zip = /(9\d{4})/.exec(city[2].replace(/\s/g, ''))
+    found.push({ line: i, street: street.trim(), city: city[1], zip: zip ? zip[1] : null })
+  })
+  return found
+}
+
+// The county's own office address is on the letter too, so the person's
+// address is the one closest to their name ("Case name: ..."), and on a tie
+// the one after it.
 export function aboutFromLetter(text: string): Partial<AboutYou> {
   const about: Partial<AboutYou> = {}
   const name = nameAfterLabel(text)
   if (name) about.name = name
-  const after = name ? text.slice(text.indexOf(name)) : ''
-  const street = STREET.exec(after)
-  const plain = PLAIN_STREET.exec(after)
-  // Whichever street comes first after the name.
-  const first = street && (!plain || street.index <= plain.index) ? street[0] : plain?.[1]
-  const at = first ? after.indexOf(first) : -1
-  const city = CITY.exec(after.slice(Math.max(at, 0)))
-  if (first && city) {
-    about.street = first.trim()
-    about.city = city[1]
-    about.zip = city[2]
+  const lines = text.split('\n')
+  const nameLine = name ? lines.findIndex((l) => /case\s*name|notice\s*for/i.test(l) && l.includes(name)) : -1
+  const found = addresses(lines)
+  const best =
+    nameLine < 0
+      ? found[0]
+      : [...found].sort((a, b) => Math.abs(a.line - nameLine) - Math.abs(b.line - nameLine) || b.line - a.line)[0]
+  if (best) {
+    about.street = best.street
+    about.city = best.city
+    if (best.zip) about.zip = best.zip
   }
   if (/san\s+mateo/i.test(text)) about.county = 'San Mateo'
   else if (/santa\s+clara/i.test(text)) about.county = 'Santa Clara'
+  else if (SAN_MATEO_CITIES.test(text)) about.county = 'San Mateo'
+  else if (SANTA_CLARA_CITIES.test(text)) about.county = 'Santa Clara'
   return about
 }
+
+// Cities in each county, for when the photo reader garbled the county's name
+// ("COUNTY OF SAN TITS", Oct 20 run): a city on the letter tells which one.
+// San Mateo is checked first, so "East Palo Alto" is not read as Palo Alto.
+const SAN_MATEO_CITIES =
+  /\b(?:South San Francisco|Daly City|San Bruno|Millbrae|Burlingame|Foster City|Belmont|San Carlos|Redwood City|Menlo Park|East Palo Alto|Pacifica|Half Moon Bay|Brisbane|Colma|Atherton)\b/i
+const SANTA_CLARA_CITIES =
+  /\b(?:San Jose|Sunnyvale|Mountain View|Palo Alto|Cupertino|Milpitas|Campbell|Los Gatos|Saratoga|Los Altos|Gilroy|Morgan Hill)\b/i

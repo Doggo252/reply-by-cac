@@ -78,6 +78,34 @@ async function run(calls: [string, Record<string, unknown>][], world = fakeWorld
   return { end, log, results: claude.results(), state }
 }
 
+describe('the first message to the AI', () => {
+  // What the loop's first message said, for a world.
+  async function firstMessage(world: AgentWorld) {
+    const seen: Message[][] = []
+    const ask = async (messages: Message[]): Promise<Block[]> => {
+      seen.push(structuredClone(messages))
+      return [{ type: 'text', text: 'All done.' }]
+    }
+    await runAgent(world, newRunState(), ask, () => {})
+    return JSON.parse(seen[0][0].content as string)
+  }
+
+  it('names the letter only, when there is no renewal form in the reply', async () => {
+    expect(await firstMessage(fakeWorld().world)).toEqual({ letter_id: 'letter-1', letter_type: 'MC_239A' })
+  })
+
+  // From the Oct 20 run: a stop letter that asks for the renewal form. The AI
+  // only saw "MC_239A" and never filled in the bank's name from the statement.
+  it('says which renewal facts are still blank, when the reply has the renewal form', async () => {
+    const answers = { bank: 'yes', bank_name: '', bank_balance: '', social_security: 'yes', social_security_amount: '1240.00' }
+    const first = await firstMessage(fakeWorld({ renewal: { answers: () => answers, fill: () => {} } }).world)
+    expect(first.letter_type).toBe('MC_239A')
+    expect(first.renewal_form.filled_in_by_app).toBe(true)
+    expect(first.renewal_form.blank_facts).toEqual(expect.arrayContaining(['bank_name', 'bank_balance']))
+    expect(first.renewal_form.blank_facts).not.toContain('social_security_amount')
+  })
+})
+
 describe('the AI helper loop', () => {
   it('runs a whole MC 239 A reply from letter to saved packet', async () => {
     const { world, built } = fakeWorld()

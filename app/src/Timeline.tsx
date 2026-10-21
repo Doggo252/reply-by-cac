@@ -20,6 +20,7 @@ import { askForDrafts, type Drafts } from './readerA'
 import { todayOnThisPhone } from './deadlines'
 import { shortPrint } from './fingerprint'
 import { inWords, savedOn } from './words'
+import { t } from './language'
 
 // Each kind of event in plain words, and who does it. Most common first.
 const KIND_WORDS: { kind: EventKind; label: string; who: 'You' | 'County' }[] = [
@@ -64,7 +65,7 @@ export default function Timeline({ letter, onBack }: { letter: SavedLetter | nul
   )
 
   async function remove(event: SavedEvent) {
-    if (!window.confirm(`Remove "${wordsFor(event.type).label}" from ${inWords(event.date, false)}?`)) return
+    if (!window.confirm(t('Remove "{what}" from {date}?', { what: t(wordsFor(event.type).label), date: inWords(event.date, false) }))) return
     await removeEvent(event.id)
     refresh()
   }
@@ -77,9 +78,9 @@ export default function Timeline({ letter, onBack }: { letter: SavedLetter | nul
           setProofFor(null)
         }}
       >
-        <h1 className="page-title">Add proof</h1>
+        <h1 className="page-title">{t('Add proof')}</h1>
         <p className="lead">
-          For "{wordsFor(proofFor.type).label}" on {inWords(proofFor.date, false)}.
+          {t('For "{what}" on {date}.', { what: t(wordsFor(proofFor.type).label), date: inWords(proofFor.date, false) })}
         </p>
         <ProofPicker
           papers={papers}
@@ -93,7 +94,7 @@ export default function Timeline({ letter, onBack }: { letter: SavedLetter | nul
           }}
         />
         <button type="submit" className="button">
-          Cancel
+          {t('Cancel')}
         </button>
       </form>
     )
@@ -116,11 +117,11 @@ export default function Timeline({ letter, onBack }: { letter: SavedLetter | nul
 
   return (
     <>
-      <h1 className="page-title">What you've sent</h1>
+      <h1 className="page-title">{t("What you've sent")}</h1>
       <p className="lead">
-        Write down when you sent papers and what the county did after. If the county made a mistake, we'll tell you.
+        {t("Write down when you sent papers and what the county did after. If the county made a mistake, we'll tell you.")}
       </p>
-      {storageFailed && <p className="error">This phone is not letting the app save. Private browsing can cause this.</p>}
+      {storageFailed && <p className="error">{t('This phone is not letting the app save. Private browsing can cause this.')}</p>}
 
       {findings.map((finding) => (
         <FindingCard key={finding.rule} finding={finding} />
@@ -128,11 +129,11 @@ export default function Timeline({ letter, onBack }: { letter: SavedLetter | nul
       {findings.length > 0 && letter && <WriteLetters letter={letter} findings={findings} events={events ?? []} />}
 
       <button className="button primary" onClick={() => setAdding(true)}>
-        + Write something down
+        {t('+ Write something down')}
       </button>
 
       {events && events.length === 0 && (
-        <p className="hint">Nothing here yet. If you've already mailed or dropped off papers, write down the day you did.</p>
+        <p className="hint">{t("Nothing here yet. If you've already mailed or dropped off papers, write down the day you did.")}</p>
       )}
       {events && events.length > 0 && (
         <ol className="events">
@@ -142,21 +143,21 @@ export default function Timeline({ letter, onBack }: { letter: SavedLetter | nul
             return (
               <li key={event.id} className={`event ${words.who === 'County' ? 'county' : ''}`}>
                 <p className="event-date">{inWords(event.date)}</p>
-                <p className="event-what">{words.label}</p>
+                <p className="event-what">{t(words.label)}</p>
                 {event.description && event.description !== words.label && <p className="event-note">{event.description}</p>}
                 <div className="event-bottom">
                   {event.proof ? (
-                    <span className="proof">Proof: {event.proof}</span>
+                    <span className="proof">{t('Proof: {proof}', { proof: event.proof })}</span>
                   ) : (
                     <>
-                      {needsProof && <span className="proof missing">No proof yet</span>}
+                      {needsProof && <span className="proof missing">{t('No proof yet')}</span>}
                       <button className="link" onClick={() => setProofFor(event)}>
-                        Add proof
+                        {t('Add proof')}
                       </button>
                     </>
                   )}
                   <button className="link danger" onClick={() => remove(event)}>
-                    Remove
+                    {t('Remove')}
                   </button>
                 </div>
               </li>
@@ -165,10 +166,10 @@ export default function Timeline({ letter, onBack }: { letter: SavedLetter | nul
         </ol>
       )}
       {events && events.length > 0 && !stopsCoverage && (
-        <p className="hint">The mistake check works with a notice that your Medi-Cal is being stopped.</p>
+        <p className="hint">{t('The mistake check works with a notice that your Medi-Cal is being stopped.')}</p>
       )}
       <button className="button" onClick={onBack}>
-        Back to my letter
+        {t('Back to my letter')}
       </button>
     </>
   )
@@ -179,17 +180,16 @@ function FindingCard({ finding }: { finding: Finding }) {
   return (
     <div className="finding" role="alert">
       <h2>
-        <WarningIcon /> The county may have made a mistake
+        <WarningIcon /> {t('The county may have made a mistake')}
       </h2>
-      <p>{finding.reason}</p>
-      <p className="small">Your papers count from {inWords(finding.date, false)}.</p>
+      <p>{t(finding.reason)}</p>
+      <p className="small">{t('Your papers count from {date}.', { date: inWords(finding.date, false) })}</p>
       {finding.needs_proof && (
         <p>
-          <strong>Do you have proof you sent them?</strong> A receipt, a mail slip, or a photo works. Tap "Add
-          proof" on the event below.
+          <strong>{t('Do you have proof you sent them?')}</strong> {t('A receipt, a mail slip, or a photo works. Tap "Add proof" on the event below.')}
         </p>
       )}
-      <p className="law">Law: {finding.citation.replace(/^Law:\s*/, '')}</p>
+      <p className="law">{t('Law: {law}', { law: finding.citation.replace(/^Law:\s*/, '') })}</p>
     </div>
   )
 }
@@ -203,8 +203,7 @@ function WriteLetters({ letter, findings, events }: { letter: SavedLetter; findi
   if (letter.mode !== 'ai') {
     return (
       <p className="hint">
-        We can write a letter asking the county to fix this, but that needs AI help. You chose to keep everything on
-        your phone.
+        {t('We can write a letter asking the county to fix this, but that needs AI help. You chose to read your letter on your phone only.')}
       </p>
     )
   }
@@ -221,19 +220,19 @@ function WriteLetters({ letter, findings, events }: { letter: SavedLetter; findi
     return (
       <>
         <button className="button primary" onClick={write} disabled={state === 'writing'}>
-          {state === 'writing' ? 'Writing your letter…' : 'Write my letter to the county'}
+          {state === 'writing' ? t('Writing your letter…') : t('Write my letter to the county')}
         </button>
-        {state === 'failed' && <p className="error">We could not write it right now. Please try again later.</p>}
+        {state === 'failed' && <p className="error">{t('We could not write it right now. Please try again later.')}</p>}
       </>
     )
   }
 
   return (
     <>
-      <DraftCard title="Letter asking the county to undo the stop" text={drafts.rescission_letter} />
-      <DraftCard title="Why I disagree (for the hearing form)" text={drafts.hearing_reason} />
+      <DraftCard title={t('Letter asking the county to undo the stop')} text={drafts.rescission_letter} />
+      <DraftCard title={t('Why I disagree (for the hearing form)')} text={drafts.hearing_reason} />
       <p className="hint">
-        These go into your reply when you tap the big button on your letter screen. Read both before you send anything.
+        {t('These go into your reply when you tap the big button on your letter screen. Read both before you send anything.')}
       </p>
     </>
   )
@@ -252,9 +251,9 @@ function DraftCard({ title, text }: { title: string; text: string }) {
   return (
     <div className="card">
       <h2>{title}</h2>
-      <p className="draft-text">{text}</p>
+      <p className="draft-text" lang="en">{text}</p>
       <button className="button" onClick={copy}>
-        {copied ? 'Copied' : 'Copy'}
+        {copied ? t('Copied') : t('Copy')}
       </button>
     </div>
   )
@@ -275,14 +274,14 @@ function AddEvent({ papers, onPapersChanged, onCancel, onSave }: {
   if (!kind) {
     return (
       <>
-        <h1 className="page-title">What happened?</h1>
+        <h1 className="page-title">{t('What happened?')}</h1>
         {KIND_WORDS.map((k) => (
           <button key={k.kind} className="choice" onClick={() => setKind(k.kind)}>
-            <strong>{k.label}</strong>
+            <strong>{t(k.label)}</strong>
           </button>
         ))}
         <button className="button" onClick={onCancel}>
-          Cancel
+          {t('Cancel')}
         </button>
       </>
     )
@@ -304,30 +303,30 @@ function AddEvent({ papers, onPapersChanged, onCancel, onSave }: {
 
   return (
     <form onSubmit={save}>
-      <h1 className="page-title">{words.label}</h1>
+      <h1 className="page-title">{t(words.label)}</h1>
       <label className="field">
-        <span>When?</span>
+        <span>{t('When?')}</span>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
       </label>
       <label className="field">
-        <span>Anything to add? (you can skip this)</span>
+        <span>{t('Anything to add? (you can skip this)')}</span>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder={kind === 'papers_sent' ? 'For example: mailed my bank statements' : ''}
+          placeholder={kind === 'papers_sent' ? t('For example: mailed my bank statements') : ''}
         />
       </label>
 
       <div className="field">
-        <span>Proof (you can skip this)</span>
+        <span>{t('Proof (you can skip this)')}</span>
         <ProofPicker papers={papers} picked={proofId} onPapersChanged={onPapersChanged} onPick={(p) => setProofId(p?.id ?? null)} />
       </div>
 
       <button type="submit" className="button primary">
-        Save
+        {t('Save')}
       </button>
       <button type="button" className="button" onClick={onCancel}>
-        Cancel
+        {t('Cancel')}
       </button>
     </form>
   )
@@ -353,27 +352,31 @@ function ProofPicker({ papers, picked, noneChoice = true, onPapersChanged, onPic
     onPapersChanged()
     onPick(paper)
   }
+  // Newest first, and each paper once: a retaken photo has the same name.
+  const shown = [...papers]
+    .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
+    .filter((paper, i, all) => paper.id === picked || all.findIndex((p) => p.name === paper.name) === i)
   return (
     <>
-      <p className="small">A receipt, a mail slip, or a photo of what you sent.</p>
+      <p className="small">{t('A receipt, a mail slip, or a photo of what you sent.')}</p>
       {noneChoice && (
         <button type="button" className={`choice ${picked === null ? 'on' : ''}`} onClick={() => onPick(null)}>
-          <strong>No proof</strong>
+          <strong>{t('No proof')}</strong>
         </button>
       )}
-      {papers.map((paper) => (
+      {shown.map((paper) => (
         <button
           type="button"
           key={paper.id}
           className={`choice ${picked === paper.id ? 'on' : ''}`}
           onClick={() => onPick(paper)}
         >
-          <strong>{paper.name}</strong>
-          <span>Saved {savedOn(paper.addedAt)}</span>
+          <strong>{t(paper.name)}</strong>
+          <span>{t('Saved {date}', { date: savedOn(paper.addedAt) })}</span>
         </button>
       ))}
       <label className="button">
-        Take a photo of my proof
+        {t('Take a photo of my proof')}
         <input type="file" accept="image/*" capture="environment" onChange={addPhoto} hidden />
       </label>
     </>

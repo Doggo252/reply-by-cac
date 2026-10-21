@@ -7,9 +7,15 @@
 export type Line = { text: string; lang: 'en-US' | 'es-US' }
 
 // The lines to read, from the words on the screen. Marks like ✓ are dropped,
-// since a voice would say "check mark". Lines in a Spanish part of the screen
-// (the explanation, in Spanish) get a Spanish voice.
-export function linesToRead(screenText: string, spanishParts: string[] = []): Line[] {
+// since a voice would say "check mark". Each line gets the voice of the app's
+// language (`base`), except lines in a part marked Spanish (the explanation in
+// Spanish) or English (the letter to the county, which is always English).
+export function linesToRead(
+  screenText: string,
+  spanishParts: string[] = [],
+  englishParts: string[] = [],
+  base: Line['lang'] = 'en-US',
+): Line[] {
   const lines: Line[] = []
   for (const raw of screenText.split('\n')) {
     let text = raw.replace(/[✓✉•▶▼→←]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -18,7 +24,8 @@ export function linesToRead(screenText: string, spanishParts: string[] = []): Li
     if (!/[a-z]/.test(text) && (text.match(/[A-Z]{4,}/g) ?? []).length >= 2) {
       text = text.charAt(0) + text.slice(1).toLowerCase()
     }
-    lines.push({ text, lang: spanishParts.some((part) => part.includes(raw.trim())) ? 'es-US' : 'en-US' })
+    const inPart = (parts: string[]) => parts.some((part) => part.includes(raw.trim()))
+    lines.push({ text, lang: inPart(spanishParts) ? 'es-US' : inPart(englishParts) ? 'en-US' : base })
   }
   return lines
 }

@@ -4,7 +4,8 @@
 
 1. **Start:** When the user taps "Use AI to prepare my response". Internet is required, else the button is greyed out and only the manual button works. If the user chose "Keep everything on my phone", the button is not shown at all.
 2. **All letters:** For every letter type, suggest papers to pick or ask for a photo.
-3. **Privacy:** Before anything is sent to the AI model, the app redacts PII (name, address, case number, account numbers, social security number, birthdate). The user is told that three things are sent, all with private details removed: the text and facts from the letter, their own timeline notes, and the text from their papers. Their sensitive data stays on the phone. If the user says no, they manually choose the papers for the packet and draft the reason.
+   - **Renewal form:** The app asks the person the renewal form's questions. The agent reads their papers and fills in facts printed on them (like the Social Security amount) where the person left a blank. The person confirms each one on the review screen.
+3. **Privacy:** Before anything is sent to the AI model, the app redacts PII (name, address, case number, account numbers, social security number, birthdate). On the app's first screen, where the user chooses AI help or phone only (the only time they are asked), the user is told that three things are sent, all with private details removed: the text and facts from the letter, their own timeline notes, and the text from their papers. Their sensitive data stays on the phone. If the user says no, they manually choose the papers for the packet and draft the reason.
 4. **For MC 239 A only:** Sending the missing papers is the main step. If a county mistake is found, the agent drafts the restore letter and the hearing request. If no mistake is found, neither is drafted. The user can remove either draft on the review screen.
 5. **Review and sign:** The user checks the responses, fixes yellow boxes and signs. The check must pass before they can sign. After they sign, the packet is saved into My papers.
 6. **Control:** If the agent tries to make the packet before the signature, or while checker errors are unfixed, the application code prevents it. The application code also ensures deadline rules and county rules are followed and not made up.
@@ -79,6 +80,20 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
   - none
 - **If a precondition fails:** n/a.
 - **Why it is not locked:** the user takes the photo, and it stays on the phone.
+
+### fill_renewal_answers
+
+- **What it does:** for renewal forms only, writes facts read on the person's papers into the renewal form (MC 210 RV): the monthly Social Security amount, the Medicare Part B premium, the pension amount, the bank's name and balance, the Medicare number, and the life insurance cash value. Each answer says which paper it came from. It only fills answers the person left blank.
+- **Inputs:** `letter_id` (text), `answers` (list of `{ question, value, paper_id }`)
+- **Output:** `{ ok: true, accepted: [question], refused: [{ question, reason }], still_blank: [question] }` or `{ ok: false, reason }`
+- **Preconditions (checked in code, not by the AI):**
+  - letter exists, and it is a renewal (MC 210 RV) or an MC 239 A letter that asks for the renewal form
+  - each `question` is one of: `social_security_amount`, `medicare_part_b_premium`, `pension_amount`, `bank_name`, `bank_balance`, `medicare_number`, `life_insurance_value`
+  - each `paper_id` exists in My papers
+  - each `value` is printed on that paper: the code finds the same number or words in the paper's text
+  - the person has not already answered that question themselves
+- **If a precondition fails:** an answer that fails is refused with its reason, and the other answers still go in. A wrong `letter_id` or a letter that is not a renewal is a soft refuse.
+- **Why it is not locked:** the answers are only suggestions. The review screen shows each one with the paper it came from, and nothing is used until the person taps the button that says it looks right.
 
 ### check_county_mistake
 
@@ -169,9 +184,10 @@ See Section 3.
 ### build_packet (LOCKED)
 
 - **What it does:** assembles the final response packet and saves it to My papers, once. The packet contains the approved papers plus the same forms the manual flow makes for that letter type:
-  - **MC 239 A:** the cover sheet, the signed hearing request draft if the user kept it, and the signed restore letter draft if one was approved and kept
+  - **MC 239 A:** the cover sheet, the signed hearing request draft if the user kept it, and the signed restore letter draft if one was approved and kept. When the letter asks for the renewal form, also the renewal form filled in from the person's answers, signed on page 17
   - **MC 355:** the cover sheet
-  - **MC 210 RV (renewal):** the cover sheet and the signed page 17
+  - **MC 210 RV (renewal):** the cover sheet and the renewal form filled in from the person's answers, signed on page 17
+  - **All letters:** a signed statement for the papers the person said they do not have, if any
 - **Inputs:** `packet_id` (text)
 - **Output:** `{ ok: true, saved_at }` or `{ ok: false, reason }`
 - **Preconditions (checked in code, not by the AI):**
@@ -196,6 +212,7 @@ See Section 3.
 - Claude never supplies a signature. Signatures come only from the signature pad.
 - Claude never passes a paper list, a draft, a rule or a signature to `build_packet`. Only a `packet_id`.
 - Claude never adds a draft back after the user removed it. Only the user can change what is in the packet, on the review screen.
+- Claude never answers a question about the person's life on the renewal form (like who lives with them). It only fills in facts printed on a paper, with `fill_renewal_answers`, where the person left the answer blank.
 - Deadline rules, county-mistake rules and law citations come only from the app's rule tables, never from Claude.
 - Any reason, explanation or draft text from Claude containing a date not in the confirmed facts or the timeline is rejected.
 - Any edit after signing clears the signature and the check result. Nothing is built from an old signature.

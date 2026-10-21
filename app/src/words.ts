@@ -1,5 +1,7 @@
 // Plain words the screens share. Neil's rule: the user sees words like
 // "a request for more information", never codes like MC355.
+// Shown in the language the person picked (language.ts).
+import { locale, t } from './language'
 
 export const LETTER_NAMES: Record<string, string> = {
   MC_239A: 'A letter saying your Medi-Cal will stop',
@@ -7,12 +9,12 @@ export const LETTER_NAMES: Record<string, string> = {
   MC210_RV: 'Your yearly renewal packet',
   OTHER: 'Not one of the letters this app handles',
 }
-export const plain = (type: string) => LETTER_NAMES[type] ?? type
+export const plain = (type: string) => t(LETTER_NAMES[type] ?? type)
 
-// "2026-10-06" becomes "Tuesday, October 6, 2026". UTC so the day never
-// shifts with the phone's time zone.
+// "2026-10-06" becomes "Tuesday, October 6, 2026" (or the Spanish). UTC so
+// the day never shifts with the phone's time zone.
 export function inWords(date: string, weekday = true): string {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString(locale(), {
     weekday: weekday ? 'long' : undefined,
     month: 'long',
     day: 'numeric',
@@ -23,7 +25,7 @@ export function inWords(date: string, weekday = true): string {
 
 // When a file was saved, in the phone's own time zone: "October 9, 2026".
 export const savedOn = (isoTime: string) =>
-  new Date(isoTime).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  new Date(isoTime).toLocaleDateString(locale(), { month: 'long', day: 'numeric', year: 'numeric' })
 
 // What each fact is called on screen.
 export const FACT_LABELS: Record<string, string> = {
@@ -35,3 +37,4 @@ export const FACT_LABELS: Record<string, string> = {
   worker_phone: "Your worker's phone number",
   case_number: 'Case number',
 }
+export const factLabel = (field: string) => t(FACT_LABELS[field] ?? field)

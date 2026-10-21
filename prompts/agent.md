@@ -14,6 +14,7 @@ For each letter type (unless mentioned otherwise):
 3. **`list_papers`**: see what is saved already, then compare it to what the county is asking for, which we got in step 1.
    - a. **`get_paper_text`**: read only the papers that match what the county is asking for.
    - b. **`request_photo`**: if a paper is missing, ask the user to upload or take a picture. If they don't have the paper, move on.
+   - c. **`fill_renewal_answers`** (renewal forms only): after reading the papers, send only the facts you actually found printed on a paper, each with the paper it came from. Never guess. If no paper shows a fact, leave it blank.
 4. **Only for MC 239 A:**
    - a. **`check_county_mistake`**: check if the county made a mistake. If a mistake was found, draft a restore letter using **`draft_restore_letter`**.
    - b. **`draft_hearing_request`**: only if a county mistake was found in 4a. Include the mistake in the hearing request. If no mistake was found, do not draft one; sending the missing papers is what brings Medi-Cal back.

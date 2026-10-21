@@ -14,6 +14,7 @@
 // tests can run them without a browser.
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
 import type { Mismatch } from './checker'
+import { fillRenewalForm, type RenewalAnswers } from './renewalForm'
 
 // Facts written on the papers, as the person reviewed them. Written the way
 // American forms write them: 10/01/2026 and (408) 555-0123.
@@ -40,9 +41,10 @@ export type PacketInput = {
   toSend?: string[] // the papers going in the envelope, listed in the cover letter
   statements?: string[] // "I do not have life insurance." and the like, for the cover letter
   later?: string[] // papers the person will send when they find them
+  renewal?: RenewalAnswers // the renewal form's answers, when the reply includes the filled-in form
   attachments: Attachment[]
   signature: Uint8Array | null // PNG of the signature
-  forms: { hearingRequest?: Uint8Array; renewalSignaturePage?: Uint8Array }
+  forms: { hearingRequest?: Uint8Array; renewalSignaturePage?: Uint8Array; renewalForm?: Uint8Array }
 }
 
 // The two things that must be true before a final packet is made. The agent's
@@ -220,9 +222,11 @@ export function longDate(value: string | undefined): string {
 
 // The papers lists talk to the person ("Your newest bank statement"). The
 // letter is from them, so it says "My newest bank statement". ("Your letter"
-// stays: that is the county's letter.)
+// stays: that is the county's letter.) The examples that help the person
+// ("Proof of income, like a pay stub, ...") don't belong in a letter.
 export function inMyWords(item: string): string {
   return item
+    .replace(/, like .*$/, '')
     .replace(/\bYour\b(?! letter)/g, 'My')
     .replace(/\byour\b(?! letter)/g, 'my')
     .replace(/\byou\b/g, 'I')
@@ -278,12 +282,12 @@ export function coverLetter(input: CoverLetterInput): CoverLetter {
 
   const list = [
     ...(input.toSend ?? []).map(inMyWords),
+    ...(input.statements?.length ? ['A signed statement about papers I do not have'] : []),
     ...(input.undoLetter ? ['A letter asking you to restore my Medi-Cal'] : []),
     ...(input.hearing ? ['A request for a state hearing'] : []),
   ]
 
   const after: string[] = []
-  if (input.statements?.length) after.push(input.statements.join(' '))
   if (input.later?.length) {
     // "Retirement account statement" reads as "my retirement account statement".
     const items = input.later
@@ -322,6 +326,7 @@ export function bodyOnly(text: string): string {
 type Block = { text: string; bold?: boolean; size?: number; gap?: number; bullet?: boolean } | { signature: true; gap?: number }
 
 const SIGNATURE_HEIGHT = 40
+const RENEWAL_PAGES = 17 // the MC 210 RV pages that go back to the county
 
 // Puts the blocks on pages, top to bottom, starting a new page when one is
 // full. Returns where each line goes (page, x, y), and how many pages it took.
@@ -383,7 +388,7 @@ function letterTop(from: string[], date: string, to: string[], re: string, greet
 const PACKET_TITLES: Record<string, string> = {
   MC_239A: 'Response to Notice of Action (Medi-Cal discontinuance)',
   MC355: 'Response to Request for Information (MC 355)',
-  MC210_RV: 'Medi-Cal renewal (MC 210 RV): signature page and proof',
+  MC210_RV: 'Medi-Cal renewal (MC 210 RV) and proof',
 }
 
 // Builds the packet. With `final`, it refuses unless the checker passed and
@@ -448,7 +453,20 @@ export async function buildPacket(input: PacketInput, mismatches: Mismatch[], fi
     contents.push(['Letter asking you to restore my Medi-Cal', pages])
   }
 
-  if (input.letterType === 'MC210_RV') {
+  // The renewal form, filled in from the person's answers: pages 1 to 17 (the
+  // pages after 17 are "keep for your records"), signed on page 17.
+  if (input.renewal && input.forms.renewalForm) {
+    const filled = await fillRenewalForm(input.forms.renewalForm, { answers: input.renewal, about, facts: f, today: input.today })
+    filled.getForm().flatten()
+    const embedded = await packet.embedPdf(await filled.save(), Array.from({ length: RENEWAL_PAGES }, (_, i) => i))
+    embedded.forEach((form, i) => {
+      const page = packet.addPage([form.width, form.height])
+      page.drawPage(form)
+      formPages.push(page)
+      if (i === RENEWAL_PAGES - 1) sign(page, 92, 400, 300, 34)
+    })
+    contents.push(['My renewal form (MC 210 RV), filled in and signed', RENEWAL_PAGES])
+  } else if (input.letterType === 'MC210_RV') {
     if (!input.forms.renewalSignaturePage) throw new Error('The renewal signature page is missing.')
     const source = await PDFDocument.load(input.forms.renewalSignaturePage)
     const form = source.getForm()
@@ -457,6 +475,29 @@ export async function buildPacket(input: PacketInput, mismatches: Mismatch[], fi
     formPages.push(page)
     sign(page, 92, 400, 300, 34)
     contents.push(['My signed renewal page (MC 210 RV, page 17)', 1])
+  }
+
+  // A signed statement for the papers the person does not have, laid out like the cover letter.
+  if (input.statements?.length) {
+    const blocks: Block[] = [
+      ...letterTop(
+        coverLetter({ ...input, hearing: false, undoLetter: false }).from,
+        longDate(input.today),
+        [`${about.county} County Medi-Cal`, ...(f.worker_name ? [`Attn: ${f.worker_name}`] : [])],
+        `Re: Papers I do not have${f.case_number ? `, case number ${f.case_number}` : ''}`,
+        f.worker_name ? `Dear ${f.worker_name},` : 'Dear Medi-Cal worker,',
+      ),
+      { text: 'About the papers you asked for:', gap: 10 },
+      ...input.statements.map((text, i) => ({ text, bullet: true, gap: i === 0 ? 4 : 2 })),
+      { text: 'I declare that this is true and correct.', gap: 10 },
+      { text: 'Sincerely,', gap: 16 },
+      { signature: true, gap: 4 },
+      { text: about.name, gap: 2 },
+    ]
+    const { placed, pages } = placeBlocks(blocks, fonts)
+    const added = Array.from({ length: pages }, () => packet.addPage([...LETTER]))
+    drawPlaced(added, placed, sign)
+    contents.push(['My signed statement about papers I do not have', pages])
   }
 
   for (const file of input.attachments) {

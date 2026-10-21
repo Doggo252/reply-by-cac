@@ -146,10 +146,10 @@ describe('the cover letter', () => {
     ])
   })
 
-  it('says what the person does not have, and what comes later', () => {
+  it('lists the signed statement, and says what comes later', () => {
     const letter = words({ statements: ['I do not have life insurance.'], later: ['Your newest bank statement'] })
-    expect(letter.after[0]).toBe('I do not have life insurance.')
-    expect(letter.after[1]).toBe('I am still looking for my newest bank statement. I will send it as soon as I can.')
+    expect(letter.list).toContain('A signed statement about papers I do not have')
+    expect(letter.after[0]).toBe('I am still looking for my newest bank statement. I will send it as soon as I can.')
   })
 
   it('has no worker name: a plain greeting', () => {
@@ -160,6 +160,8 @@ describe('the cover letter', () => {
   it('turns "your" into "my", but keeps "your letter"', () => {
     expect(inMyWords('The registration for each car you own')).toBe('The registration for each car I own')
     expect(inMyWords('The papers your letter says are missing')).toBe('The papers your letter says are missing')
+    // From the Oct 20 run: the help examples were copied into the letter.
+    expect(inMyWords('Proof of income, like a pay stub, or a Social Security or pension letter')).toBe('Proof of income')
   })
 
   it('writes dates in words', () => {
@@ -169,6 +171,23 @@ describe('the cover letter', () => {
 
   it('takes "Dear" and "Sincerely" off a drafted letter, since the letter adds its own', () => {
     expect(bodyOnly('Dear worker,\nPlease restore my Medi-Cal.\nSincerely,\nRosa')).toBe('Please restore my Medi-Cal.')
+  })
+
+  it('a renewal includes the filled-in form, pages 1 to 17', async () => {
+    const renewal = { date_of_birth: '1953-03-14', household_change: 'no', social_security: 'yes', social_security_amount: '1240' }
+    const bytes = await buildPacket(
+      input({ letterType: 'MC210_RV', hearing: null, undoLetter: null, attachments: [], renewal, forms: { ...input().forms, renewalForm: form('mc210rv.pdf') } }),
+      [],
+      true,
+    )
+    // the cover letter, then the 17 pages of the form
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(18)
+  })
+
+  it('papers the person does not have get a signed statement page', async () => {
+    const bytes = await buildPacket(input({ statements: ['I do not have a bank account.'] }), [], true)
+    // cover, hearing request, restore letter, the statement, the attached photo
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(5)
   })
 
   it('a long letter goes on to a second page', async () => {

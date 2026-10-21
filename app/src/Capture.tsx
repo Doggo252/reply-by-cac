@@ -23,7 +23,8 @@ import { findFacts } from './localFacts'
 import { fieldsFor, flagsFor, type ReadingMode } from './flags'
 import { todayOnThisPhone } from './deadlines'
 import { loadMode, saveMode, type SavedLetter } from './storage'
-import { LETTER_NAMES, plain } from './words'
+import { plain } from './words'
+import { t } from './language'
 import Confirm from './Confirm'
 import { usPhone } from './packet'
 
@@ -84,7 +85,7 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
       setStage({ name: 'done', read: { ocr, readerB, readerA, aiFacts, decision: decide(readerA, readerB) } })
     } catch (error) {
       console.error(error)
-      setStage({ name: 'error', message: 'We could not read that photo. Please try again.' })
+      setStage({ name: 'error', message: t('We could not read that photo. Please try again.') })
     }
   }
 
@@ -112,16 +113,16 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
   if (stage.name === 'idle' || stage.name === 'error') {
     return (
       <>
-        <h1 className="page-title">Take a photo of your letter</h1>
-        <p className="lead">Start with the first page of your Medi-Cal letter. We'll read it and tell you what to do.</p>
+        <h1 className="page-title">{t('Take a photo of your letter')}</h1>
+        <p className="lead">{t("Start with the first page of your Medi-Cal letter. We'll read it and tell you what to do.")}</p>
         {stage.name === 'error' && <p className="error">{stage.message}</p>}
         <label className="button primary">
           <CameraIcon />
-          Take a photo
+          {t('Take a photo')}
           <input type="file" accept="image/*" capture="environment" onChange={handleFileInput} hidden />
         </label>
         <label className="button">
-          Choose a photo I already took
+          {t('Choose a photo I already took')}
           <input type="file" accept="image/*" onChange={handleFileInput} hidden />
         </label>
         {import.meta.env.DEV && (
@@ -130,15 +131,15 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
           </button>
         )}
         <div className="card">
-          <h2>For a clear photo</h2>
-          <p>Lay the letter flat on a table, where there's good light.</p>
-          <p>Get the whole page in the picture.</p>
-          <p>The photo stays on your phone.</p>
+          <h2>{t('For a clear photo')}</h2>
+          <p>{t("Lay the letter flat on a table, where there's good light.")}</p>
+          <p>{t('Get the whole page in the picture.')}</p>
+          <p>{t('The photo stays on your phone.')}</p>
         </div>
         <p className="hint">
-          {mode === 'ai' ? "We'll use AI to help read it." : "We'll read it on your phone only."}{' '}
+          {mode === 'ai' ? t("We'll use AI to help read it.") : t("We'll read it on your phone only.")}{' '}
           <button className="link" onClick={() => setMode(null)}>
-            Change
+            {t('Change')}
           </button>
         </p>
       </>
@@ -147,19 +148,19 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
 
   return (
     <>
-      <h1 className="page-title">{stage.name === 'reading' ? 'Reading your letter' : 'Check what we read'}</h1>
-      {photoUrl && <img className="photo" src={photoUrl} alt="Your letter" />}
+      <h1 className="page-title">{stage.name === 'reading' ? t('Reading your letter') : t('Check what we read')}</h1>
+      {photoUrl && <img className="photo" src={photoUrl} alt={t('Your letter')} />}
 
       {stage.name === 'reading' && (
         <div className="card" role="status">
-          <h2>{stage.almostDone ? 'Almost done…' : 'Reading your letter…'}</h2>
+          <h2>{stage.almostDone ? t('Almost done…') : t('Reading your letter…')}</h2>
           <progress value={stage.progress} max={1} />
-          <p>This takes a few seconds. Keep this screen open.</p>
+          <p>{t('This takes a few seconds. Keep this screen open.')}</p>
         </div>
       )}
 
       {stage.name === 'done' && (
-        <AfterReading read={stage.read} mode={mode} onDone={onDone} onRetake={startOver} />
+        <AfterReading read={stage.read} mode={mode} photoUrl={photoUrl} onDone={onDone} onRetake={startOver} />
       )}
 
       {stage.name === 'done' && import.meta.env.DEV && (
@@ -177,9 +178,10 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
 
 // Everything after both readers have answered: settle the letter type, then
 // check the facts.
-function AfterReading({ read, mode, onDone, onRetake }: {
+function AfterReading({ read, mode, photoUrl, onDone, onRetake }: {
   read: Read
   mode: ReadingMode
+  photoUrl: string | null
   onDone: (letter: SavedLetter) => void
   onRetake: () => void
 }) {
@@ -192,7 +194,7 @@ function AfterReading({ read, mode, onDone, onRetake }: {
 
   const retake = (
     <button className="button" onClick={onRetake}>
-      Take a new photo
+      {t('Take a new photo')}
     </button>
   )
 
@@ -216,8 +218,8 @@ function AfterReading({ read, mode, onDone, onRetake }: {
     // The two readers disagree. Neil's rule: the user picks between them.
     return (
       <div className="card">
-        <h2>Which letter is this?</h2>
-        <p>We're not sure. Look at the title at the top of your letter. Which one is it?</p>
+        <h2>{t('Which letter is this?')}</h2>
+        <p>{t("We're not sure. Look at the title at the top of your letter. Which one is it?")}</p>
         {decision.choices.map((choice) => (
           <button key={choice} className="choice" onClick={() => setPicked(choice)}>
             <strong>{plain(choice)}</strong>
@@ -233,17 +235,18 @@ function AfterReading({ read, mode, onDone, onRetake }: {
   return (
     <>
       <div className="card">
-        <h2>This is</h2>
+        <h2>{t('This is')}</h2>
         <p className="big-answer">{plain(picked)}</p>
         {decision.status === 'agree' && (
           <p className="checked-twice">
-            <CheckIcon /> We checked it two ways, and both agree.
+            <CheckIcon /> {t('We checked it two ways, and both agree.')}
           </p>
         )}
       </div>
       <CheckFacts
         read={read}
         mode={mode}
+        photoUrl={photoUrl}
         letterType={picked}
         onConfirm={(facts) => onDone({ letterType: picked, facts, mode, text: read.ocr.text, savedAt: new Date().toISOString() })}
       />
@@ -264,15 +267,15 @@ function OnlyOneCheck({ guess, onYes, onPick, onNone, retake }: {
   if (!choosing) {
     return (
       <div className="card">
-        <h2>We think this letter is</h2>
+        <h2>{t('We think this letter is')}</h2>
         <p className="big-answer">{plain(guess)}</p>
-        <p>Is that right? Look at the title at the top of your letter.</p>
+        <p>{t('Is that right? Look at the title at the top of your letter.')}</p>
         <div className="button-row">
           <button className="button primary" onClick={onYes}>
-            Yes
+            {t('Yes')}
           </button>
           <button className="button" onClick={() => setChoosing(true)}>
-            No
+            {t('No')}
           </button>
         </div>
       </div>
@@ -280,14 +283,14 @@ function OnlyOneCheck({ guess, onYes, onPick, onNone, retake }: {
   }
   return (
     <div className="card">
-      <h2>Which one is it?</h2>
+      <h2>{t('Which one is it?')}</h2>
       {HANDLED.map((type) => (
         <button key={type} className="choice" onClick={() => onPick(type)}>
-          <strong>{LETTER_NAMES[type]}</strong>
+          <strong>{plain(type)}</strong>
         </button>
       ))}
       <button className="choice" onClick={onNone}>
-        <strong>None of these</strong>
+        <strong>{t('None of these')}</strong>
       </button>
       {retake}
     </div>
@@ -297,9 +300,10 @@ function OnlyOneCheck({ guess, onYes, onPick, onNone, retake }: {
 // Builds the confirm screen: the AI's facts where there are some, the
 // phone's own finds for the rest, and the case number always from the phone
 // (the AI never sees it).
-function CheckFacts({ read, mode, letterType, onConfirm }: {
+function CheckFacts({ read, mode, photoUrl, letterType, onConfirm }: {
   read: Read
   mode: ReadingMode
+  photoUrl: string | null
   letterType: string
   onConfirm: (facts: Record<string, string | null>) => void
 }) {
@@ -338,27 +342,44 @@ function CheckFacts({ read, mode, letterType, onConfirm }: {
     repaired,
     today,
   })
-  return <Confirm fields={fields} facts={facts} flags={flags} onConfirm={onConfirm} />
+  return (
+    <Confirm
+      fields={fields}
+      facts={facts}
+      flags={flags}
+      text={read.ocr.text}
+      photoUrl={photoUrl}
+      letterType={letterType}
+      onConfirm={onConfirm}
+    />
+  )
 }
 
-// Neil's choice before scanning.
+// Neil's choice before scanning. It is the only time the app asks about AI
+// (Neil, Oct 20), so it says plainly what each choice can and can't do, and
+// what is sent to the AI. Choosing AI here is the consent the AI helper needs
+// (agent/TOOLS.md, Section 1).
 function ModeChoice({ onChoose }: { onChoose: (mode: ReadingMode) => void }) {
   return (
     <>
-      <h1 className="page-title">Hi! We'll help you answer your Medi-Cal letter.</h1>
-      <p className="lead">First, how would you like us to read it? You can change this later.</p>
-      <button className="choice" onClick={() => onChoose('ai')}>
-        <strong>Read it with AI (most accurate)</strong>
-        <span>
-          AI reads the letter and can explain it in plain words. We hide your name, address and case number before
-          anything is sent.
+      <h1 className="page-title">{t("Hi! We'll help you answer your Medi-Cal letter.")}</h1>
+      <p className="lead">{t('First, choose how much help you want. We only ask this once, and you can change it later.')}</p>
+      <button className="choice mode" onClick={() => onChoose('ai')}>
+        <strong>{t('Read it with AI (most accurate)')}</strong>
+        <span className="mode-line">✓ {t('Reads your letter and explains it in plain words')}</span>
+        <span className="mode-line">✓ {t('Fills in your form, and reads your papers to fill in what you leave blank')}</span>
+        <span className="mode-line">✓ {t('Checks if the county made a mistake, and writes a letter to fix it')}</span>
+        <span className="mode-note">
+          {t('We take out your name, address and case number first. Only words are sent: your letter, what you write down, and your papers. Your photos and signature stay on your phone.')}
         </span>
       </button>
-      <button className="choice" onClick={() => onChoose('phone')}>
-        <strong>Read it on my phone only (most private)</strong>
-        <span>Your letter never leaves your phone. You may need to fix a few things it reads wrong.</span>
+      <button className="choice mode" onClick={() => onChoose('phone')}>
+        <strong>{t('Read it on my phone only (most private)')}</strong>
+        <span className="mode-line">✓ {t('Nothing leaves your phone, and it works without internet')}</span>
+        <span className="mode-line">✓ {t('Fills in your form from your answers. The phone reads some numbers from your photos, but you type more yourself')}</span>
+        <span className="mode-line">✗ {t('No explanation of the letter, and no letters to the county written for you')}</span>
       </button>
-      <p className="hint">Either way, we walk you through every step.</p>
+      <p className="hint">{t('Either way, we fill in the forms with you and walk you through every step.')}</p>
     </>
   )
 }
@@ -366,13 +387,14 @@ function ModeChoice({ onChoose }: { onChoose: (mode: ReadingMode) => void }) {
 function NotHandled({ retake }: { retake: React.ReactNode }) {
   return (
     <div className="card">
-      <h2>Sorry, we can't help with this letter yet</h2>
-      <p>Right now we can help with three Medi-Cal letters:</p>
-      <p>
-        {LETTER_NAMES.MC210_RV}, {LETTER_NAMES.MC355.toLowerCase()}, and{' '}
-        {LETTER_NAMES.MC_239A.toLowerCase()}.
-      </p>
-      <p>If this is one of them, try a new photo of the first page.</p>
+      <h2>{t("Sorry, we can't help with this letter yet")}</h2>
+      <p>{t('Right now we can help with three Medi-Cal letters:')}</p>
+      <ul className="send-list">
+        <li>{plain('MC210_RV')}</li>
+        <li>{plain('MC355')}</li>
+        <li>{plain('MC_239A')}</li>
+      </ul>
+      <p>{t('If this is one of them, try a new photo of the first page.')}</p>
       {retake}
     </div>
   )

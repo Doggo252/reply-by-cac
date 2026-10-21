@@ -1,14 +1,16 @@
 // "Use AI to prepare my response": the AI helper's screens.
 //
 //   1. About you   name and address for the forms (only if not saved yet)
-//   2. Consent     what is sent to the AI, with private details removed
-//   3. Papers      the same paper screens as step by step (PaperSteps.tsx):
-//                  which boxes are checked, the renewal form part by part,
+//   2. Papers      the same paper screens as step by step (PaperSteps.tsx):
+//                  which boxes are checked, the renewal form's questions,
 //                  then each paper, one at a time
-//   4. Running     the live action log, one line per step
-//   5. Pauses      the AI waits while the person looks things over, signs,
+//   3. Running     the live action log, one line per step
+//   4. Pauses      the AI waits while the person looks things over, signs,
 //                  or takes a photo. These are the person's hands, not the AI's.
-//   6. The end     the saved packet, or a plain message if it had to stop
+//   5. The end     the saved packet, or a plain message if it had to stop
+//
+// There is no separate "may we use AI?" screen: the person said yes on the
+// app's first screen, which says what is sent (Neil, Oct 20: ask once).
 //
 // The loop itself is agentLoop.ts and the tools are agentTools.ts, both from
 // Neil's agent/TOOLS.md. This file only gives the tools the phone's storage
@@ -25,11 +27,12 @@ import { buildPacket, type AboutYou, type PacketInput } from './packet'
 import { AboutForm, Done, fetchForm } from './ReplyPacket'
 import PaperSteps from './PaperSteps'
 import { helpFor } from './paperHelp'
-import { CoverPreview, PhotoPreview, letterValue } from './ReplyPreview'
+import { CoverPreview, PhotoPreview, RenewalPreview, StatementPreview, letterValue } from './ReplyPreview'
 import SignaturePad from './SignaturePad'
 import { addPaper, listEvents, listPapers, loadAbout, saveAbout, saveHelperLog, type Paper, type SavedLetter } from './storage'
-import { usePapers } from './usePapers'
-import { FACT_LABELS, savedOn } from './words'
+import { allowedPicks, onePerPaper, usePapers } from './usePapers'
+import { factLabel, savedOn } from './words'
+import { t } from './language'
 
 type Papers = ReturnType<typeof usePapers>
 
@@ -40,7 +43,7 @@ type Pause =
   | { kind: 'sign'; answer: (png: Uint8Array | null) => void }
   | { kind: 'photo'; paperName: string; answer: (paperId: string | null) => void }
 
-type Stage = 'about' | 'consent' | 'papers' | 'running' | 'ended'
+type Stage = 'about' | 'papers' | 'running' | 'ended'
 
 const isReplyPacket = (p: Paper) => p.name.startsWith('Reply packet')
 
@@ -50,7 +53,7 @@ export default function AgentHelper({ letter, onBack, onManual }: {
   onManual: () => void
 }) {
   const [about, setAbout] = useState<AboutYou | null>(loadAbout)
-  const [stage, setStage] = useState<Stage>(about ? 'consent' : 'about')
+  const [stage, setStage] = useState<Stage>(about ? 'papers' : 'about')
   const [log, setLog] = useState<LogLine[]>([])
   const [pause, setPause] = useState<Pause | null>(null)
   const [end, setEnd] = useState<RunEnd | null>(null)
@@ -66,19 +69,38 @@ export default function AgentHelper({ letter, onBack, onManual }: {
     window.scrollTo(0, 0)
   }
 
+  // Which run is the current one. "Stop and go back" moves it on, so a run
+  // the person stopped can't pull them back to its ending screen later.
+  const runId = useRef(0)
+
   async function start() {
+    const mine = ++runId.current
     show('running')
     setLog([])
     made.current = null
     const lines: LogLine[] = []
-    const result = await runAgent(makeWorld(letter, about!, setPause, made, latest), newRunState(), askAI, (line) => {
+    // A stopped run can't show its screens any more; it just waits, unseen.
+    const pauseIfCurrent = (next: Pause | null) => {
+      if (mine === runId.current) setPause(next)
+    }
+    const result = await runAgent(makeWorld(letter, about!, pauseIfCurrent, made, latest), newRunState(), askAI, (line) => {
       lines.push(line)
-      setLog([...lines])
+      if (mine === runId.current) setLog([...lines])
     })
     saveHelperLog(lines.map(logRecord))
+    if (mine !== runId.current) return
     setPause(null)
     setEnd(result)
     show('ended')
+  }
+
+  // On the review screen: back to the papers right away, without waiting
+  // for the AI to answer (the review tool still tells it "cancelled").
+  function stopAndGoBack(answer: (choice: ReviewAnswer | null) => void) {
+    runId.current += 1
+    answer(null)
+    setPause(null)
+    show('papers')
   }
 
   if (stage === 'about') {
@@ -90,40 +112,9 @@ export default function AgentHelper({ letter, onBack, onManual }: {
         onSave={(next) => {
           saveAbout(next)
           setAbout(next)
-          show('consent')
+          show('papers')
         }}
       />
-    )
-  }
-
-  if (stage === 'consent') {
-    return (
-      <>
-        <h1 className="page-title">We'll put your reply together for you</h1>
-        <p className="lead">
-          First we go through your papers with you, one at a time. Then we put your reply together, and you read it
-          over and sign. We never send anything to the county. You do that yourself.
-        </p>
-        <div className="card">
-          <h2>What the AI sees</h2>
-          <p className="small">We take out your name, address and case number first.</p>
-          <ol className="checklist">
-            <li>What your letter says</li>
-            <li>What you wrote down about papers you sent</li>
-            <li>The words on the papers you saved</li>
-          </ol>
-          <p className="small">Your photos and your signature never leave this phone.</p>
-        </div>
-        <button className="button primary big" onClick={() => show('papers')}>
-          Yes, help me
-        </button>
-        <button className="button" onClick={onManual}>
-          No, I'll go step by step
-        </button>
-        <button className="link" onClick={onBack}>
-          Back to my letter
-        </button>
-      </>
     )
   }
 
@@ -131,10 +122,10 @@ export default function AgentHelper({ letter, onBack, onManual }: {
     return (
       <PaperSteps {...papers.stepsProps}>
         <button className="button primary big" onClick={start}>
-          Next: put my reply together
+          {t('Next: put my reply together')}
         </button>
         <button className="link" onClick={onBack}>
-          Back to my letter
+          {t('Back to my letter')}
         </button>
       </PaperSteps>
     )
@@ -144,17 +135,17 @@ export default function AgentHelper({ letter, onBack, onManual }: {
     if (end?.finished && made.current) return <Done paper={made.current} letterType={letter.letterType} onBack={onBack} />
     return (
       <>
-        <h1 className="page-title">{end?.finished ? "We're done" : "We couldn't finish"}</h1>
+        <h1 className="page-title">{end?.finished ? t("We're done") : t("We couldn't finish")}</h1>
         {end?.message && <p className="lead">{end.message}</p>}
         <ActionLog log={log} />
         <button className="button primary" onClick={start}>
-          Try again
+          {t('Try again')}
         </button>
         <button className="button" onClick={onManual}>
-          Go step by step instead
+          {t('Go step by step instead')}
         </button>
         <button className="link" onClick={onBack}>
-          Back to my letter
+          {t('Back to my letter')}
         </button>
       </>
     )
@@ -164,15 +155,22 @@ export default function AgentHelper({ letter, onBack, onManual }: {
   return (
     <>
       {pause?.kind === 'review' && (
-        <ReviewScreen view={pause.view} letter={letter} about={about!} papers={papers} answer={pause.answer} />
+        <ReviewScreen
+          view={pause.view}
+          letter={letter}
+          about={about!}
+          papers={papers}
+          answer={pause.answer}
+          onStop={() => stopAndGoBack(pause.answer)}
+        />
       )}
       {pause?.kind === 'sign' && <SignScreen answer={pause.answer} />}
       {pause?.kind === 'photo' && <PhotoScreen paperName={pause.paperName} answer={pause.answer} />}
       {!pause && (
         <>
-          <h1 className="page-title">Putting your reply together…</h1>
+          <h1 className="page-title">{t('Putting your reply together…')}</h1>
           <p className="lead" role="status">
-            This takes about a minute. Keep this screen open.
+            {t('This takes about a minute. Keep this screen open.')}
           </p>
         </>
       )}
@@ -206,7 +204,7 @@ function makeWorld(
 
   return {
     letter: { id: letterId(letter), letterType: letter.letterType, facts: letter.facts, text: letter.text ?? '' },
-    consent: true, // they tapped "Yes, help me"
+    consent: true, // they chose AI help on the app's first screen, which says what is sent
     // Blanked everywhere, even with no label next to them (agentLoop.ts).
     privateNames: [about.name, about.street].filter((word) => word.trim().length > 0),
     async listPapers() {
@@ -234,7 +232,10 @@ function makeWorld(
     listEvents,
     // Saved under the matching paper's name, so the papers list shows it as done.
     async takePhoto(asked) {
-      const { photoItems, toSend, answers } = latest.current
+      const { photoItems, toSend, answers, renewalForm } = latest.current
+      // The app fills in the renewal form from the person's answers, so a
+      // photo of the county's paper copy is never needed (Oct 20 run).
+      if (renewalForm && /renewal form|mc ?210/i.test(asked)) return null
       const item = closestItem(asked, photoItems ?? toSend)
       // The person already answered for this paper on the paper screens ("I'll
       // put the paper copy in", "I don't have it", "later"), so don't ask again.
@@ -245,13 +246,22 @@ function makeWorld(
     },
     review: (view) => waitFor<ReviewAnswer | null>((answer) => ({ kind: 'review', view, answer })),
     sign: () => waitFor<Uint8Array | null>((answer) => ({ kind: 'sign', answer })),
+    // Neil's fill_renewal_answers tool fills blanks in the renewal form here.
+    renewal: latest.current.renewalForm
+      ? {
+          answers: () => latest.current.renewal,
+          fill: (found) => latest.current.fillFromPapers(found),
+        }
+      : undefined,
 
     // Only called by build_packet, after its checks passed. The same forms,
     // the same papers list and the same buildPacket as step by step.
     async build(packet, drafts, signature) {
-      const [hearingRequest, renewalSignaturePage] = await Promise.all([
+      const { renewalForm } = latest.current
+      const [hearingRequest, renewalSignaturePage, renewalFormBytes] = await Promise.all([
         fetchForm('/forms/hearing-request.pdf'),
         fetchForm('/forms/mc210rv-signature-page.pdf'),
+        renewalForm ? fetchForm('/forms/mc210rv.pdf') : Promise.resolve(undefined),
       ])
       const chosen = (await papers()).filter((p) => packet.paperIds.includes(p.id))
       const attachments = await Promise.all(
@@ -269,9 +279,10 @@ function makeWorld(
         toSend: latest.current.included,
         statements: latest.current.statements,
         later: latest.current.later,
+        renewal: renewalForm ? latest.current.renewal : undefined,
         attachments,
         signature,
-        forms: { hearingRequest, renewalSignaturePage },
+        forms: { hearingRequest, renewalSignaturePage, renewalForm: renewalFormBytes },
       }
       // buildPacket checks the checker and the signature once more itself.
       const bytes = await buildPacket(input, check(packet.formFacts, confirmed(letter)), true)
@@ -291,14 +302,14 @@ function ActionLog({ log }: { log: LogLine[] }) {
   if (log.length === 0) return null
   return (
     <div className="card">
-      <h2>What we've done so far</h2>
+      <h2>{t("What we've done so far")}</h2>
       <ol className="action-log">
         {log.map((line, i) => (
           <li key={i}>{logWords(line)}</li>
         ))}
       </ol>
       <details className="more">
-        <summary>Details</summary>
+        <summary>{t('Details')}</summary>
         {log.map((line, i) => (
           <span key={i} className="log-record">
             {logRecord(line)}
@@ -313,12 +324,13 @@ function ActionLog({ log }: { log: LogLine[] }) {
 // and the same ways to change things: the papers (the same paper screens),
 // a date or number, a draft letter. Done hands their choices back; the tool
 // then reruns the checker.
-function ReviewScreen({ view, letter, about, papers, answer }: {
+function ReviewScreen({ view, letter, about, papers, answer, onStop }: {
   view: ReviewView
   letter: SavedLetter
   about: AboutYou
   papers: Papers
   answer: (choice: ReviewAnswer | null) => void
+  onStop: () => void
 }) {
   const { packet, drafts, explanations } = view
   const { chosen, setChosen } = papers
@@ -335,10 +347,19 @@ function ReviewScreen({ view, letter, about, papers, answer }: {
   const [reasons, setReasons] = useState<Record<string, string>>(Object.fromEntries(drafts.map((d) => [d.id, d.reason])))
   const [formFacts, setFormFacts] = useState(packet.formFacts)
 
-  // Any photo the AI picked goes in too, beside the ones from the paper screens.
+  // A photo the AI picked goes in too, beside the ones from the paper screens,
+  // if it is for this letter (allowedPicks): one per paper, and never the
+  // Medicare card (onePerPaper).
   useEffect(() => {
-    setChosen((old) => [...old, ...packet.paperIds.filter((id) => !old.includes(id))])
-    listPapers().then(papers.setPapers).catch(() => {})
+    listPapers()
+      .then((all) => {
+        papers.setPapers(all)
+        setChosen((old) => {
+          const picks = allowedPicks(packet.paperIds.filter((id) => !old.includes(id)), all, papers.photoItems ?? [], letter.savedAt)
+          return onePerPaper([...old, ...picks], all)
+        })
+      })
+      .catch(() => {})
   }, [])
 
   if (editingPapers) {
@@ -351,7 +372,7 @@ function ReviewScreen({ view, letter, about, papers, answer }: {
             window.scrollTo(0, 0)
           }}
         >
-          Back to my reply
+          {t('Back to my reply')}
         </button>
       </PaperSteps>
     )
@@ -364,11 +385,11 @@ function ReviewScreen({ view, letter, about, papers, answer }: {
 
   return (
     <>
-      <h1 className="page-title">Look over your reply</h1>
-      <p className="lead">This is what we'll send to the county. Read it through. You can change anything before you sign.</p>
+      <h1 className="page-title">{t('Look over your reply')}</h1>
+      <p className="lead">{t("This is what we'll send to the county. Read it through. You can change anything before you sign.")}</p>
       {packet.check?.pass && (
         <p className="all-good" role="status">
-          ✓ The dates and numbers match your letter.
+          {t('✓ The dates and numbers match your letter.')}
         </p>
       )}
 
@@ -383,8 +404,20 @@ function ReviewScreen({ view, letter, about, papers, answer }: {
         hearing={drafts.some((d) => d.kind === 'hearing_request' && kept.includes(d.id))}
         undoLetter={drafts.some((d) => d.kind === 'restore_letter' && kept.includes(d.id))}
       />
+      {papers.renewalForm && (
+        <RenewalPreview
+          answers={papers.renewal}
+          fromPapers={papers.fromPapers}
+          onChange={() => {
+            papers.stepsProps.renewal?.onStep('review')
+            setEditingPapers(true)
+            window.scrollTo(0, 0)
+          }}
+        />
+      )}
+      {papers.statements.length > 0 && <StatementPreview statements={papers.statements} />}
       <PhotoPreview photos={photos} onRemove={(id) => setChosen(chosen.filter((c) => c !== id))} />
-      {tooMany && <p className="hint">You can send up to {MAX_PAPERS} photos. Take some out.</p>}
+      {tooMany && <p className="hint">{t('You can send up to {n} photos. Take some out.', { n: MAX_PAPERS })}</p>}
 
       {/* The restore letter first, then the hearing (a backup). */}
       {[...drafts]
@@ -402,23 +435,23 @@ function ReviewScreen({ view, letter, about, papers, answer }: {
 
       {changing && (
         <>
-          <h2 className="section-title">What goes on your forms</h2>
+          <h2 className="section-title">{t('What goes on your forms')}</h2>
           {yellow.length > 0 ? (
             <p className="error" role="alert">
-              Fix the yellow {yellow.length === 1 ? 'box' : 'boxes'} so they match your letter.
+              {yellow.length === 1 ? t('Fix the yellow box so it matches your letter.') : t('Fix the yellow boxes so they match your letter.')}
             </p>
           ) : (
-            <p className="lead">Change what is wrong, then tap Check again.</p>
+            <p className="lead">{t('Change what is wrong, then tap Check again.')}</p>
           )}
           {Object.keys(formFacts).map((field) => {
             const box = yellow.find((b) => b.field === field)
             return (
               <label key={field} className={`fact ${box ? 'flagged' : ''}`}>
-                <span className="fact-label">{FACT_LABELS[field] ?? field}</span>
+                <span className="fact-label">{factLabel(field)}</span>
                 <input value={formFacts[field]} onChange={(e) => setFormFacts({ ...formFacts, [field]: e.target.value })} />
                 {box && (
                   <span className="fact-flag">
-                    Your letter says: {letterValue(field, box.expected)}
+                    {t('Your letter says: {value}', { value: letterValue(field, box.expected) })}
                     {explanations[box.yellow_box_id] ? `. ${explanations[box.yellow_box_id]}` : ''}
                   </span>
                 )}
@@ -433,10 +466,10 @@ function ReviewScreen({ view, letter, about, papers, answer }: {
         disabled={missingReason || tooMany}
         onClick={() => answer({ paperIds: chosen, keptDraftIds: kept, reasons, formFacts })}
       >
-        {changing ? 'Check again' : 'It looks right. Next, sign it'}
+        {changing ? t('Check again') : t('It looks right. Next, sign it')}
       </button>
-      {missingReason && <p className="hint">Write why, or untick the hearing.</p>}
-      <p className="hint">Want to change something?</p>
+      {missingReason && <p className="hint">{t('Write why, or untick the hearing.')}</p>}
+      <p className="hint">{t('Want to change something?')}</p>
       <div className="button-row">
         <button
           className="button"
@@ -445,14 +478,14 @@ function ReviewScreen({ view, letter, about, papers, answer }: {
             window.scrollTo(0, 0)
           }}
         >
-          The papers
+          {t('The papers')}
         </button>
         <button className="button" onClick={() => setChanging(true)}>
-          A date or number
+          {t('A date or number')}
         </button>
       </div>
-      <button className="link" onClick={() => answer(null)}>
-        Stop and go back
+      <button className="link" onClick={onStop}>
+        {t('Stop and go back')}
       </button>
     </>
   )
@@ -471,19 +504,19 @@ function DraftChoice({ draft, on, reason, onToggle, onReason }: {
       <button className={`choice ${on ? 'on' : ''}`} onClick={onToggle}>
         <strong>
           {on ? '✓ ' : ''}
-          {hearing ? 'Also ask for a hearing' : 'Letter asking the county to fix its mistake'}
+          {hearing ? t('Also ask for a hearing') : t('Letter asking the county to fix its mistake')}
         </strong>
         <span>
           {hearing
-            ? 'Only if you think the county made a mistake. A judge looks at it.'
-            : `The county may have made a mistake. The law: ${draft.citation ?? ''}`}
+            ? t('Only if you think the county made a mistake. A judge looks at it.')
+            : t('The county may have made a mistake. The law: {law}', { law: draft.citation ?? '' })}
         </span>
       </button>
       {on && (
         <label className="field">
-          <span>{hearing ? 'Why do you think the county is wrong?' : 'What happened, in your words'}</span>
+          <span>{hearing ? t('Why do you think the county is wrong?') : t('What happened, in your words')}</span>
           <textarea value={reason} onChange={(e) => onReason(e.target.value)} />
-          {!reason.trim() && <span className="hint">The AI left this blank. Please write it yourself.</span>}
+          {!reason.trim() && <span className="hint">{t('The AI left this blank. Please write it yourself.')}</span>}
         </label>
       )}
     </>
@@ -495,14 +528,14 @@ function SignScreen({ answer }: { answer: (png: Uint8Array | null) => void }) {
   const [signature, setSignature] = useState<Uint8Array | null>(null)
   return (
     <>
-      <h1 className="page-title">Sign your reply</h1>
-      <p className="lead">Sign in the box with your finger. When you sign, you're saying everything in your reply is true. Your signature stays on this phone.</p>
+      <h1 className="page-title">{t('Sign your reply')}</h1>
+      <p className="lead">{t("Sign in the box with your finger. When you sign, you're saying everything in your reply is true. Your signature stays on this phone.")}</p>
       <SignaturePad onChange={setSignature} />
       <button className="button primary big" disabled={!signature} onClick={() => answer(signature)}>
-        Sign and finish
+        {t('Sign and finish')}
       </button>
       <button className="button" onClick={() => answer(null)}>
-        Not now
+        {t('Not now')}
       </button>
     </>
   )
@@ -514,22 +547,22 @@ function PhotoScreen({ paperName, answer }: { paperName: string; answer: (paperI
   const help = helpFor(paperName)
   return (
     <>
-      <h1 className="page-title">Can you take a photo of this?</h1>
-      <p className="lead">{paperName || 'A paper for your reply'}</p>
+      <h1 className="page-title">{t('Can you take a photo of this?')}</h1>
+      <p className="lead">{paperName ? t(paperName) : t('A paper for your reply')}</p>
       {paperName && (
         <div className="card">
           <p>
-            <strong>What it is: </strong>
-            {help.what}
+            <strong>{t('What it is:')} </strong>
+            {t(help.what)}
           </p>
           <p>
-            <strong>Where to find it: </strong>
-            {help.where}
+            <strong>{t('Where to find it:')} </strong>
+            {t(help.where)}
           </p>
         </div>
       )}
       <label className="button primary big">
-        Take a photo of it
+        {t('Take a photo of it')}
         <input
           type="file"
           accept="image/*"
@@ -545,7 +578,7 @@ function PhotoScreen({ paperName, answer }: { paperName: string; answer: (paperI
         />
       </label>
       <button className="button" onClick={() => answer(null)}>
-        I don't have it right now
+        {t("I don't have it right now")}
       </button>
     </>
   )

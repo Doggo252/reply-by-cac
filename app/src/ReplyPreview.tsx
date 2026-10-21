@@ -2,8 +2,10 @@
 // making a reply (step by step, and the AI helper) show this same preview.
 import { useEffect, useState } from 'react'
 import { coverLetter, type CoverLetterInput } from './packet'
+import { FROM_PAPER_NAMES, money, renewalLines, type RenewalAnswers } from './renewalForm'
 import type { Paper } from './storage'
 import { inWords } from './words'
+import { getLanguage, t } from './language'
 
 // Page 1: the cover letter, word for word as it will be printed.
 export function CoverPreview(props: CoverLetterInput) {
@@ -11,8 +13,9 @@ export function CoverPreview(props: CoverLetterInput) {
   const lines = (items: string[]) => items.map((line, i) => <span key={i}>{line}<br /></span>)
   return (
     <div className="card preview">
-      <p className="preview-label">Page 1: your letter to the county</p>
-      <div className="letter">
+      <p className="preview-label">{t('Page 1: your letter to the county')}</p>
+      {getLanguage() !== 'en' && <p className="small">{t('Your letter is in English, because the county reads English.')}</p>}
+      <div className="letter" lang="en">
         <p>{lines(letter.from)}</p>
         <p>{letter.date}</p>
         <p>{lines(letter.to)}</p>
@@ -31,7 +34,7 @@ export function CoverPreview(props: CoverLetterInput) {
         <p>
           {letter.closing}
           <br />
-          <span className="letter-sign">(your signature)</span>
+          <span className="letter-sign">{t('(your signature)')}</span>
           <br />
           {letter.name}
         </p>
@@ -40,21 +43,85 @@ export function CoverPreview(props: CoverLetterInput) {
   )
 }
 
+// The renewal form the app filled in: what it will say.
+export function RenewalPreview({ answers, fromPapers, onChange }: {
+  answers: RenewalAnswers
+  fromPapers: Record<string, string> // question -> the paper it was read from
+  onChange?: () => void
+}) {
+  // Answers read off a photo, by the phone or the AI helper. Shown on their
+  // own, so the person checks each one against the paper.
+  const read = Object.entries(fromPapers).filter(([id]) => answers[id])
+  return (
+    <div className="card preview">
+      <p className="preview-label">{t('Then your renewal form (MC 210 RV), filled in')}</p>
+      {read.length > 0 && (
+        <div className="read-from-papers">
+          <p>
+            <strong>{t('We read these from your papers. Please check them:')}</strong>
+          </p>
+          <ul>
+            {read.map(([id, paper]) => (
+              <li key={id}>
+                {t(FROM_PAPER_NAMES[id] ?? id)}: <strong>{id.endsWith('_name') || id === 'medicare_number' ? answers[id] : `$${money(answers[id])}`}</strong>{' '}
+                <span className="small">{t('(from {paper})', { paper: t(paper).replace(/^./, (c) => c.toLowerCase()) })}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {/* The read answers show up again here, so say this is the whole form. */}
+      {read.length > 0 && (
+        <p>
+          <strong>{t('Everything we wrote on the form:')}</strong>
+        </p>
+      )}
+      <ul className="renewal-lines">
+        {renewalLines(answers).map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <p className="small">{t("You sign it on page 17. That's the signature you make next.")}</p>
+      {onChange && (
+        <button className="link" onClick={onChange}>
+          {t('Change my answers')}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// The signed statement for papers the person does not have.
+export function StatementPreview({ statements }: { statements: string[] }) {
+  return (
+    <div className="card preview">
+      <p className="preview-label">{t('Then your signed statement')}</p>
+      <p lang="en">About the papers you asked for:</p>
+      <ul className="send-list">
+        {statements.map((s) => (
+          <li key={s}>{s}</li>
+        ))}
+      </ul>
+      <p lang="en">I declare that this is true and correct.</p>
+    </div>
+  )
+}
+
 // The photos going in the reply. With onRemove, each one can be taken out.
 export function PhotoPreview({ photos, onRemove }: { photos: Paper[]; onRemove?: (id: string) => void }) {
   if (photos.length === 0) {
-    return <p className="hint">No photos are in your reply. Remember to put the paper copies in the envelope.</p>
+    return <p className="hint">{t('No photos are in your reply. Remember to put the paper copies in the envelope.')}</p>
   }
   return (
     <div className="card preview">
-      <p className="preview-label">Then your photos</p>
+      <p className="preview-label">{t('Then your photos')}</p>
       <div className="thumbs">
         {photos.map((p) => (
           <div key={p.id}>
             <PaperThumb paper={p} />
             {onRemove && (
               <button className="link" onClick={() => onRemove(p.id)}>
-                Take it out
+                {t('Take it out')}
               </button>
             )}
           </div>
@@ -75,7 +142,7 @@ function PaperThumb({ paper }: { paper: Paper }) {
   return (
     <figure className="thumb">
       {paper.type.startsWith('image/') && url ? <img src={url} alt="" /> : <span>PDF</span>}
-      <figcaption>{paper.name}</figcaption>
+      <figcaption>{t(paper.name)}</figcaption>
     </figure>
   )
 }

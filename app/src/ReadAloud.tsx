@@ -3,6 +3,7 @@
 // on reading a screen that is gone.
 import { useEffect, useState } from 'react'
 import { canReadAloud, linesToRead, readAloud, stopReading } from './speech'
+import { getLanguage, t } from './language'
 
 export default function ReadAloud() {
   const [reading, setReading] = useState(false)
@@ -28,9 +29,10 @@ export default function ReadAloud() {
     if (!screen) return
     // Everything on the screen except this top line.
     const parts = [...screen.children].filter((part) => !part.classList.contains('top-bar')) as HTMLElement[]
-    const spanish = [...screen.querySelectorAll<HTMLElement>('[lang="es"]')].map((part) => part.innerText)
+    const marked = (lang: string) => [...screen.querySelectorAll<HTMLElement>(`[lang="${lang}"]`)].map((part) => part.innerText)
+    const base = getLanguage() === 'es' ? 'es-US' : 'en-US'
     setReading(true)
-    readAloud(linesToRead(parts.map((part) => part.innerText).join('\n'), spanish), () => setReading(false))
+    readAloud(linesToRead(parts.map((part) => part.innerText).join('\n'), marked('es'), marked('en'), base), () => setReading(false))
   }
 
   function stop() {
@@ -50,7 +52,7 @@ export default function ReadAloud() {
           </>
         )}
       </svg>
-      {reading ? 'Stop' : 'Read it to me'}
+      {reading ? t('Stop') : t('Read it to me')}
     </button>
   )
 }

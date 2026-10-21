@@ -17,9 +17,15 @@ test('a discontinuance: skips the county office address at the top', () => {
   })
 })
 
-test('a city with no comma, and no county named', () => {
+test('a city with no comma, and no county named (the city tells the county)', () => {
   const text = 'Notice For: Esperanza Hernandez\nEsperanza Hernandez .\n7227 Oak St Notice Date: 10/07/2026\nEast Palo Alto CA 94303-4315'
-  expect(aboutFromLetter(text)).toEqual({ name: 'Esperanza Hernandez', street: '7227 Oak St', city: 'East Palo Alto', zip: '94303' })
+  expect(aboutFromLetter(text)).toEqual({
+    name: 'Esperanza Hernandez',
+    street: '7227 Oak St',
+    city: 'East Palo Alto',
+    zip: '94303',
+    county: 'San Mateo',
+  })
 })
 
 test('a misread name or a label is not taken for a name', () => {
@@ -37,7 +43,32 @@ test('a street with no St or Ave, right above the city line', () => {
   expect(aboutFromLetter(text)).toMatchObject({ street: '1240 Broadway', city: 'Sunnyvale', zip: '94086' })
 })
 
+// From the Oct 20 test kit, as the phone read a photo of it: the address is
+// joined with the box beside it, and the ZIP code is garbled.
+test('an address joined with the box beside it, and a garbled ZIP', () => {
+  const text = [
+    'To ask for help in your language, call: (408) 555-0100 (PV) fen lo',
+    'R Delgad i .',
+    '1240 Broadway Notice date: October 10, 2026',
+    'Sunnyvale, ca gq 086 Case number: 7Q2M118',
+    'Case name: Rosa Delgado',
+    'Worker name: Ana Ruiz',
+    'In person to: Santa Clara County Medi-Cal Office',
+    'At: 1867 Senter Rd',
+    'San Jose, CA 95112',
+  ].join('\n')
+  expect(aboutFromLetter(text)).toEqual({ name: 'Rosa Delgado', street: '1240 Broadway', city: 'Sunnyvale', county: 'Santa Clara' })
+})
+
 test('an apartment number stays with the street', () => {
   const text = 'Case name: Robert Chen\nRobert Chen\n8966 Alameda Ave Apt 23\nMenlo Park CA 94025-5539'
   expect(aboutFromLetter(text)).toMatchObject({ street: '8966 Alameda Ave Apt 23', city: 'Menlo Park', zip: '94025' })
+})
+
+// From the Oct 20 run: the county's name was garbled ("COUNTY OF SAN TITS"),
+// so the city on the letter tells which county it is.
+test('the county, from a city when its name is garbled', () => {
+  expect(aboutFromLetter('COUNTY OF SAN TITS\nSouth San Francisco, Ca 94080-9559').county).toBe('San Mateo')
+  expect(aboutFromLetter('COUNTY OF 5ANTA CL4RA\nMountain View, CA 94040').county).toBe('Santa Clara')
+  expect(aboutFromLetter('East Palo Alto, CA 94303').county).toBe('San Mateo')
 })

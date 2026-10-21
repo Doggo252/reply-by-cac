@@ -22,7 +22,7 @@ from backend.redact import redact
 # Exactly the tools in Neil's agent/TOOLS.md. Anything else is refused here,
 # and the phone refuses it again.
 AGENT_TOOLS = [
-    "get_letter", "get_timeline", "list_papers", "get_paper_text", "request_photo",
+    "get_letter", "get_timeline", "list_papers", "get_paper_text", "request_photo", "fill_renewal_answers",
     "check_county_mistake", "draft_hearing_request", "draft_restore_letter",
     "propose_packet", "run_checker", "open_review_screen", "ask_user_to_sign", "build_packet",
 ]
@@ -49,8 +49,8 @@ def declarations(tools):
 
     Each tool from the phone looks like
       {"name": "get_letter", "description": "...", "inputs": {"letter_id": "text"}}
-    where an input is "text" or "list". `explanations` is the one list of
-    objects; every other list is a list of IDs.
+    where an input is "text" or "list". `explanations` and `answers` are the
+    lists of objects; every other list is a list of IDs.
     """
     result = []
     for tool in tools:
@@ -63,6 +63,14 @@ def declarations(tools):
                     "type": "object",
                     "properties": {"yellow_box_id": {"type": "string"}, "plain_words": {"type": "string"}},
                     "required": ["yellow_box_id", "plain_words"],
+                }}
+            elif field == "answers":
+                properties[field] = {"type": "array", "items": {
+                    "type": "object",
+                    "properties": {
+                        "question": {"type": "string"}, "value": {"type": "string"}, "paper_id": {"type": "string"},
+                    },
+                    "required": ["question", "value", "paper_id"],
                 }}
             else:
                 properties[field] = {"type": "array", "items": {"type": "string"}}

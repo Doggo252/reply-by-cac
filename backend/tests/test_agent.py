@@ -48,6 +48,13 @@ def test_the_tool_list_becomes_gemini_declarations():
     assert explanations["items"]["required"] == ["yellow_box_id", "plain_words"]
 
 
+def test_the_renewal_answers_are_a_list_of_objects():
+    tool = {"name": "fill_renewal_answers", "description": "fills blanks", "inputs": {"letter_id": "text", "answers": "list"}}
+    answers = agent.declarations([tool])[0]["parameters"]["properties"]["answers"]
+    assert answers["items"]["required"] == ["question", "value", "paper_id"]
+    assert "fill_renewal_answers" in agent.AGENT_TOOLS
+
+
 def test_a_finished_answer_is_plain_text(monkeypatch, tmp_path):
     with_prompt(monkeypatch, tmp_path)
     monkeypatch.setattr(llm, "ask_with_tools", fake_model(

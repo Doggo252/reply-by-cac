@@ -9,14 +9,16 @@ export type PaperHelp = {
   noneLine?: string // what the cover letter then says, in the person's own voice
 }
 
-const HELP: [RegExp, PaperHelp][] = [
+export const HELP: [RegExp, PaperHelp][] = [
   [/renewal form|mc ?210/i, {
     what: 'The renewal form that came in the mail with your letter. Fill it in and sign it.',
     where: "If you can't find it, call your worker and ask them to send a new one.",
   }],
   [/property form|property insert/i, {
-    what: 'A short form about anything you own, like a house, a car or money in the bank. It came with your renewal form.',
-    where: 'Look in the same envelope as your renewal form.',
+    what: 'A short form about anything you own, like a house, a car or money in the bank. The county sends it with the renewal form.',
+    where: 'Look in the same envelope as your letter. Fill it in with the same answers you just gave us.',
+    noneLabel: "The county didn't send me one",
+    noneLine: 'The county did not send me a property form with my renewal.',
   }],
   [/medicare premium/i, {
     what: 'A paper that shows what you pay each month for Medicare.',
@@ -27,6 +29,13 @@ const HELP: [RegExp, PaperHelp][] = [
     where: 'Your Social Security award letter (it comes every year, usually in December), a pension statement, or a recent pay stub.',
     noneLabel: "I don't have any income",
     noneLine: 'I do not have any income.',
+  }],
+  // "Bank statements for the last 3 months": more than one (Oct 20 run).
+  [/bank statements/i, {
+    what: 'The statements from your bank that show how much is in your account.',
+    where: "They come in the mail every month, or your bank can print copies. Send one for each month your letter asks for. If there is more than one, it's easiest to put the paper copies in the envelope.",
+    noneLabel: "I don't have a bank account",
+    noneLine: 'I do not have a bank account.',
   }],
   [/bank/i, {
     what: 'The statement from your bank that shows how much is in your account.',
