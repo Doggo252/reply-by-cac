@@ -29,6 +29,10 @@ const KINDS: Kind[] = [
   { paper: /driver|photo id/i, words: [/driver|license|identification|dmv/i], label: 'an ID card', statement: false },
 ]
 
+// Words printed on the renewal form's pages: its name, "page 9 of 21", and
+// the "Review your ... information" boxes.
+const RENEWAL_PAGE = /MC\s*210\s*RV|page\s+\d{1,2}\s+of\s+21\b|review\s+your\s+[a-z ]{0,30}information/i
+
 export type PhotoCheck = {
   ok: boolean
   problems: string[] // in plain words
@@ -70,6 +74,16 @@ export function checkPhoto(paperName: string, text: string, personName: string, 
       ok: false,
       problems: [t("We couldn't read the words on this photo. It may be blurry, too dark, or too far away.")],
       found: '',
+    }
+  }
+  // A page of the renewal form itself is not one of the person's papers: the
+  // app fills that form in. (On Oct 21 Mom took a photo of its "Resources
+  // and property" page as "the property form".)
+  if (RENEWAL_PAGE.test(text)) {
+    return {
+      ok: false,
+      problems: [t("This looks like a page of your renewal form. We fill that form in for you, so you don't need a photo of it.")],
+      found: t('a page of your renewal form'),
     }
   }
   const problems: string[] = []

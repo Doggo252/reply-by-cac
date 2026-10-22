@@ -185,10 +185,28 @@ low. Only one more full test run, near submission.**
   - [x] [C] Five test runs (renewal, MC 355, stop letter with AI; stop letter
         phone-only in Spanish; the kit from "Start over"). About 15 bugs
         fixed; see `AI-USE.md`. 213 app tests, 119 Python tests, build OK.
-- [ ] **Tue 10/20** [N] Review the changed files, commit and push, wait for
-      Render to rebuild, then tap "Start over" on the phone before handing
-      it to Mom.
-- [ ] **Tue 10/20** [N] Mom's second test with the test kit and role card.
+- [x] **Tue 10/20** [N] Commit, push, Mom's second test with the test kit.
+      Found: address and date of birth not read, bank and Medicare photos
+      failed the first time, photos sideways in the packet, wants to see the
+      whole packet before signing.
+- [x] **Wed 10/21** [C] Fixed from that test (Neil's decisions):
+  - [x] Photos turned upright and made smaller in the packet (7.5 MB to 0.5 MB).
+  - [x] Sturdier photo reading: shadows taken out on a second try, a third
+        "sparse" try for cards, a shadow tip under every camera button.
+  - [x] Date of birth read from the letter; address read with a cleaner
+        second reading when the first misses it.
+  - [x] A page of the renewal form taken as "the property form" is caught.
+  - [x] "See the whole packet, page by page" before signing (pdf.js, Neil
+        approved the new library).
+  - [x] "Can't reach the AI" notices, and the free server woken up early.
+  - [x] Modern look, same warm colors (Neil's choice).
+  - [x] Renewal: reads what the county printed on pages 5, 9 and 11, asks
+        "Still right / It changed" for each line, copies them back with Yes or
+        No, and writes only what changed.
+- [ ] **Wed 10/21** [N] Review the changed files, commit and push. On the phone:
+      Start over, then try the renewal with the kit's pages 5, 9 and 11.
+- [ ] [N] The video script: add the county pages and the whole-packet preview
+      (ask Claude to update the doc).
 - [ ] [N] Optional: `prompts/agent.md` step 3c says "renewal forms only". The
       AI sometimes skips it for a stop letter that asks for the renewal form.
       The app now says `renewal_form` in the first message, and the phone

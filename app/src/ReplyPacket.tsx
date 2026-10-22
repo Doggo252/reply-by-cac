@@ -18,7 +18,7 @@ import { useState } from 'react'
 import { check, type Mismatch } from './checker'
 import { aboutFromLetter } from './aboutFromLetter'
 import { buildPacket, paperFactsFrom, type AboutYou, type Attachment, type PacketInput, type PaperFacts } from './packet'
-import { addEvent, addPaper, loadAbout, loadDrafts, saveAbout, type Paper, type SavedLetter } from './storage'
+import { addEvent, addPaper, loadAbout, loadDrafts, saveAbout, textForAddress, type Paper, type SavedLetter } from './storage'
 import { todayOnThisPhone } from './deadlines'
 import { shortPrint } from './fingerprint'
 import { factLabel, inWords, savedOn } from './words'
@@ -26,6 +26,8 @@ import { t } from './language'
 import SignaturePad from './SignaturePad'
 import PaperSteps from './PaperSteps'
 import { printOrSend } from './printOrSend'
+import { photoForPacket } from './image'
+import PacketPreview from './PacketPreview'
 import { usePapers } from './usePapers'
 import { CoverPreview, PhotoPreview, RenewalPreview, StatementPreview, letterValue } from './ReplyPreview'
 
@@ -70,36 +72,31 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
     window.scrollTo(0, 0)
   }
 
+  // Everything that goes in the packet, with the signature or without it yet.
+  async function packetInput(signed: Uint8Array | null): Promise<PacketInput> {
+    const attachments: Attachment[] = await Promise.all(papers.filter((p) => chosen.includes(p.id)).map(attachmentFor))
+    return {
+      letterType: letter.letterType,
+      about: about!,
+      facts: paperFacts,
+      today: todayOnThisPhone(),
+      hearing: isStop && hearing ? { reason } : null,
+      undoLetter: isStop && undoLetter && drafts ? drafts.rescission_letter : null,
+      toSend: included,
+      statements,
+      later,
+      renewal: renewalForm ? renewal : undefined,
+      attachments,
+      signature: signed,
+      forms: await loadForms(renewalForm),
+    }
+  }
+
   async function makePacket() {
     setWorking(true)
     setProblem(null)
     try {
-      const [hearingRequest, renewalSignaturePage, renewalFormBytes] = await Promise.all([
-        fetchForm('/forms/hearing-request.pdf'),
-        fetchForm('/forms/mc210rv-signature-page.pdf'),
-        renewalForm ? fetchForm('/forms/mc210rv.pdf') : Promise.resolve(undefined),
-      ])
-      const attachments: Attachment[] = await Promise.all(
-        papers
-          .filter((p) => chosen.includes(p.id))
-          .map(async (p) => ({ name: p.name, type: p.type, bytes: new Uint8Array(await p.file.arrayBuffer()) }))
-      )
-      const input: PacketInput = {
-        letterType: letter.letterType,
-        about: about!,
-        facts: paperFacts,
-        today: todayOnThisPhone(),
-        hearing: isStop && hearing ? { reason } : null,
-        undoLetter: isStop && undoLetter && drafts ? drafts.rescission_letter : null,
-        toSend: included,
-        statements,
-        later,
-        renewal: renewalForm ? renewal : undefined,
-        attachments,
-        signature,
-        forms: { hearingRequest, renewalSignaturePage, renewalForm: renewalFormBytes },
-      }
-      const bytes = await buildPacket(input, mismatches ?? [], true)
+      const bytes = await buildPacket(await packetInput(signature), mismatches ?? [], true)
       const name = `Reply packet, ${savedOn(new Date().toISOString())}.pdf`
       const paper = await addPaper(new Blob([bytes as BlobPart], { type: 'application/pdf' }), name)
       setMade(paper)
@@ -115,7 +112,7 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
     return (
       <AboutForm
         about={about}
-        letterText={letter.text}
+        letterText={textForAddress(letter)}
         onBack={onBack}
         onSave={(next) => {
           saveAbout(next)
@@ -185,6 +182,8 @@ export default function ReplyPacket({ letter, withHearing, onBack }: {
             <p className="all-good" role="status">
               {t('✓ The dates and numbers match your letter.')}
             </p>
+            {/* The real pages, unsigned. final=false: no signature check yet. */}
+            <PacketPreview make={async () => buildPacket(await packetInput(null), mismatches ?? [], false)} />
 
             <CoverPreview
               letterType={letter.letterType}
@@ -406,6 +405,29 @@ export function AboutForm({ about, letterText, onSave, onBack }: {
       </button>
     </form>
   )
+}
+
+// A saved paper, ready to go in the packet. Photos are turned upright and
+// made smaller first (image.ts); a PDF goes in as it is.
+export async function attachmentFor(paper: Paper): Promise<Attachment> {
+  if (paper.type.startsWith('image/')) {
+    try {
+      return { name: paper.name, type: 'image/jpeg', bytes: await photoForPacket(paper.file) }
+    } catch (error) {
+      console.error(error) // fall back to the photo as it was taken
+    }
+  }
+  return { name: paper.name, type: paper.type, bytes: new Uint8Array(await paper.file.arrayBuffer()) }
+}
+
+// The official forms a packet may need, from the app's own files.
+export async function loadForms(renewalForm: boolean): Promise<PacketInput['forms']> {
+  const [hearingRequest, renewalSignaturePage, renewalFormBytes] = await Promise.all([
+    fetchForm('/forms/hearing-request.pdf'),
+    fetchForm('/forms/mc210rv-signature-page.pdf'),
+    renewalForm ? fetchForm('/forms/mc210rv.pdf') : Promise.resolve(undefined),
+  ])
+  return { hearingRequest, renewalSignaturePage, renewalForm: renewalFormBytes }
 }
 
 export async function fetchForm(path: string): Promise<Uint8Array> {

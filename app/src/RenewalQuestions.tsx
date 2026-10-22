@@ -11,9 +11,11 @@
 import { useState } from 'react'
 import { checkPhoto } from './photoCheck'
 import { readProof } from './proofRead'
-import { readText } from './ocr'
+import { readPaper } from './ocr'
+import PhotoTip from './PhotoTip'
 import { todayOnThisPhone } from './deadlines'
 import {
+  LETTER_PAPER,
   PROOF_PAPERS,
   RENEWAL_QUESTIONS,
   money,
@@ -22,6 +24,8 @@ import {
   type Question,
   type RenewalAnswers,
 } from './renewalForm'
+import { COUNTY_PAGES, ON_FILE, onFileRows, rowWords } from './countyForm'
+import { CountyPage, HaveCountyPages } from './CountyPages'
 import { addPaper, type Paper } from './storage'
 import { inWords } from './words'
 import { t } from './language'
@@ -45,8 +49,36 @@ export default function RenewalQuestions({ renewal, personName, stopLetter }: {
   // The next question after this answer, worked out from the new answers.
   const after = (changed: RenewalAnswers) => nextQuestion(changed)?.id ?? 'review'
 
+  // The pages the county filled in, before the questions (CountyPages.tsx).
+  if (step === 'county') {
+    return (
+      <HaveCountyPages
+        onYes={() => onStep(`county-${COUNTY_PAGES[0].section}`)}
+        onNo={() => {
+          renewal.onAnswer(ON_FILE, '[]')
+          onStep(after({ ...answers, [ON_FILE]: '[]' }))
+        }}
+        onBack={() => onStep('start')}
+      />
+    )
+  }
+  const countyIndex = COUNTY_PAGES.findIndex((page) => step === `county-${page.section}`)
+  if (countyIndex >= 0) {
+    const next = COUNTY_PAGES[countyIndex + 1]
+    return (
+      <CountyPage
+        key={step}
+        index={countyIndex}
+        renewal={renewal}
+        onNext={(changed) => onStep(next ? `county-${next.section}` : after(changed))}
+        onBack={() => onStep(countyIndex > 0 ? `county-${COUNTY_PAGES[countyIndex - 1].section}` : 'county')}
+      />
+    )
+  }
+
   if (step === 'start') {
-    const resuming = Object.keys(answers).length > 0
+    // Answers read from the letter (the date of birth) don't count as started.
+    const resuming = Object.keys(answers).some((id) => renewal.fromPapers[id] !== LETTER_PAPER)
     return (
       <>
         <h1 className="page-title">{t("We'll fill in your renewal form for you")}</h1>
@@ -63,7 +95,7 @@ export default function RenewalQuestions({ renewal, personName, stopLetter }: {
           </ul>
           <p className="small">{t("You can take a photo of each one, and we'll read the numbers for you.")}</p>
         </div>
-        <button className="button primary big" onClick={() => onStep(after(answers))}>
+        <button className="button primary big" onClick={() => onStep(resuming || ON_FILE in answers ? after(answers) : 'county')}>
           {resuming ? t('Pick up where I left off') : t('Start')}
         </button>
       </>
@@ -71,11 +103,29 @@ export default function RenewalQuestions({ renewal, personName, stopLetter }: {
   }
 
   const question = RENEWAL_QUESTIONS.find((q) => q.id === step)
+  const onFile = onFileRows(answers)
   if (step === 'review' || !question) {
     return (
       <>
         <h1 className="page-title">{t("Here's what we'll write on your form")}</h1>
         <p className="lead">{t('Check each answer. Tap Change to fix one.')}</p>
+        {onFile.length > 0 && (
+          <>
+            <h2 className="section-title">{t('What the county had on file')}</h2>
+            <ul className="paper-list">
+              {onFile.map((row, i) => (
+                <li key={i} className="paper-row">
+                  <p className="paper-row-name">{rowWords(row)}</p>
+                  <p className="small">{row.correct ? t('✓ Still right') : t('It changed')}</p>
+                  <button className="link" onClick={() => onStep(`county-${row.section}`)}>
+                    {t('Change')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <h2 className="section-title">{t('Your answers')}</h2>
+          </>
+        )}
         <ul className="paper-list">
           {visible.map((q) => (
             <li key={q.id} className="paper-row">
@@ -150,7 +200,9 @@ function QuestionScreen({ question: q, number, renewal, personName, onDone, onBa
     // The Medicare card is only read, never sent: its number goes on the form.
     renewal.onPhoto(paper, q.proof !== 'medicare_card')
     try {
-      const { text } = await readText(file, () => {})
+      // Tries twice if the first reading misses the answer (ocr.ts).
+      const kind = q.proof
+      const { text } = await readPaper(file, (read) => !!readProof(kind, read)[q.id])
       const found = readProof(q.proof, text)
       for (const [id, read] of Object.entries(found)) onAnswer(id, read, paperName)
       if (found[q.id]) setValue(found[q.id])
@@ -265,6 +317,7 @@ function QuestionScreen({ question: q, number, renewal, personName, onDone, onBa
               />
             </label>
           )}
+          {q.proof && !photo && <PhotoTip />}
           <button className="link" onClick={() => answer('')}>
             {t("I don't know")}
           </button>

@@ -27,11 +27,15 @@ import { plain } from './words'
 import { t } from './language'
 import Confirm from './Confirm'
 import { usPhone } from './packet'
+import { useOnline, wakeUpAI } from './online'
+import { aboutFromLetter } from './aboutFromLetter'
 
 const HANDLED = ['MC_239A', 'MC355', 'MC210_RV']
 
 // The model is loaded once and kept, since it never changes while the app runs.
 let model: Model | null = null
+// The second reading for the address, if one is running (handlePhoto below).
+let addressReading: Promise<string> = Promise.resolve('')
 
 type Read = {
   ocr: OcrResult
@@ -39,6 +43,7 @@ type Read = {
   readerA: string | null
   aiFacts: AiFacts | null
   decision: Decision
+  aiMissed: boolean // AI mode, but the AI could not be reached
 }
 
 type Stage =
@@ -50,6 +55,7 @@ type Stage =
 export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => void }) {
   const [mode, setMode] = useState<ReadingMode | null>(loadMode)
   const [stage, setStage] = useState<Stage>({ name: 'idle' })
+  const online = useOnline()
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
 
   // A preview address made with createObjectURL holds memory until it is
@@ -63,14 +69,22 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
   function chooseMode(choice: ReadingMode) {
     saveMode(choice)
     setMode(choice)
+    if (choice === 'ai') wakeUpAI()
   }
 
   async function handlePhoto(file: Blob) {
     setStage({ name: 'reading', progress: 0, almostDone: false })
     try {
+      // An upright copy to show beside the facts. readText makes its own.
       const image = await prepareImage(file)
       setPhotoUrl(URL.createObjectURL(image))
-      const ocr = await readText(image, (progress) => setStage({ name: 'reading', progress, almostDone: false }))
+      const ocr = await readText(file, (progress) => setStage({ name: 'reading', progress, almostDone: false }))
+      // The address is often printed in a thin typewriter font the first
+      // reading misses (Mom's Oct 21 test). A cleaner second reading finds it,
+      // and runs while the person checks the facts.
+      addressReading = aboutFromLetter(ocr.text).street
+        ? Promise.resolve('')
+        : readText(file, () => {}, 'clean').then((second) => second.text, () => '')
       // Reader B: Neil's classifier, running on the phone.
       model ??= await loadModel()
       const readerB = predict(model, ocr.text).letterType
@@ -82,7 +96,8 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
       }
       const readerA = (aiFacts?.letter_type as string | null | undefined) ?? null
       // Neil's must-agree rule decides what happens next.
-      setStage({ name: 'done', read: { ocr, readerB, readerA, aiFacts, decision: decide(readerA, readerB) } })
+      const aiMissed = mode === 'ai' && aiFacts === null
+      setStage({ name: 'done', read: { ocr, readerB, readerA, aiFacts, decision: decide(readerA, readerB), aiMissed } })
     } catch (error) {
       console.error(error)
       setStage({ name: 'error', message: t('We could not read that photo. Please try again.') })
@@ -134,14 +149,19 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
           <h2>{t('For a clear photo')}</h2>
           <p>{t("Lay the letter flat on a table, where there's good light.")}</p>
           <p>{t('Get the whole page in the picture.')}</p>
+          <p>{t("Keep your phone's shadow off the paper.")}</p>
           <p>{t('The photo stays on your phone.')}</p>
         </div>
-        <p className="hint">
-          {mode === 'ai' ? t("We'll use AI to help read it.") : t("We'll read it on your phone only.")}{' '}
-          <button className="link" onClick={() => setMode(null)}>
-            {t('Change')}
-          </button>
-        </p>
+        {mode === 'ai' && !online ? (
+          <p className="notice">{t("You're offline, so the AI can't help read it right now. We'll read it on your phone, and you can check every fact.")}</p>
+        ) : (
+          <p className="hint">
+            {mode === 'ai' ? t("We'll use AI to help read it.") : t("We'll read it on your phone only.")}{' '}
+            <button className="link" onClick={() => setMode(null)}>
+              {t('Change')}
+            </button>
+          </p>
+        )}
       </>
     )
   }
@@ -159,6 +179,13 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
         </div>
       )}
 
+      {stage.name === 'done' && stage.read.aiMissed && (
+        <p className="notice">
+          {navigator.onLine
+            ? t("We couldn't reach the AI just now, so your phone read the letter by itself. Please check each fact.")
+            : t("You're offline, so your phone read the letter by itself. Please check each fact.")}
+        </p>
+      )}
       {stage.name === 'done' && (
         <AfterReading read={stage.read} mode={mode} photoUrl={photoUrl} onDone={onDone} onRetake={startOver} />
       )}
@@ -248,7 +275,10 @@ function AfterReading({ read, mode, photoUrl, onDone, onRetake }: {
         mode={mode}
         photoUrl={photoUrl}
         letterType={picked}
-        onConfirm={(facts) => onDone({ letterType: picked, facts, mode, text: read.ocr.text, savedAt: new Date().toISOString() })}
+        onConfirm={async (facts) => {
+          const addressText = await addressReading
+          onDone({ letterType: picked, facts, mode, text: read.ocr.text, addressText: addressText || undefined, savedAt: new Date().toISOString() })
+        }}
       />
       {retake}
     </>

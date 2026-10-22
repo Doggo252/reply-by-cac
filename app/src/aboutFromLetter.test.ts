@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { aboutFromLetter } from './aboutFromLetter'
+import { aboutFromLetter, birthDateFromLetter } from './aboutFromLetter'
 
 // Lines from the printed test letters, as the text reader read them.
 test('a discontinuance: skips the county office address at the top', () => {
@@ -71,4 +71,20 @@ test('the county, from a city when its name is garbled', () => {
   expect(aboutFromLetter('COUNTY OF SAN TITS\nSouth San Francisco, Ca 94080-9559').county).toBe('San Mateo')
   expect(aboutFromLetter('COUNTY OF 5ANTA CL4RA\nMountain View, CA 94040').county).toBe('Santa Clara')
   expect(aboutFromLetter('East Palo Alto, CA 94303').county).toBe('San Mateo')
+})
+
+// Mom's Oct 21 test: the date of birth is on the renewal letter's first page.
+test('the date of birth, from a renewal letter', () => {
+  const page1 = 'Notice date: October 10, 2026\nIt\u2019s time to renew benefits for:\nName Date of birth\nRosa Delgado 03/14/1953\nStep 3. Send the form by the due date of December 9, 2026'
+  expect(birthDateFromLetter(page1, '2026-10-21')).toBe('1953-03-14')
+  // No old date, or two of them (which one is hers?): not a guess.
+  expect(birthDateFromLetter('Notice date: 10/10/2026', '2026-10-21')).toBeNull()
+  expect(birthDateFromLetter('Rosa 03/14/1953, Juan 07/02/1950', '2026-10-21')).toBeNull()
+})
+
+// Mom's Oct 21 test: the address was not filled in. The photo reader often
+// puts a blank line between the street and the city.
+test('an address with a blank line between the street and the city', () => {
+  const text = 'Case name: Rosa Delgado\nRosa Delgado\n\n1240 Broadway\n\nSunnyvale, CA 94086'
+  expect(aboutFromLetter(text)).toMatchObject({ street: '1240 Broadway', city: 'Sunnyvale', zip: '94086' })
 })

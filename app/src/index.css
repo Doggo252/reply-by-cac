@@ -6,16 +6,22 @@
    - one column, one main action at a time */
 
 /* Warm and friendly (Neil's choice, Oct 18): a soft cream page, deep blue for
-   the main actions, warm orange for "act soon", green for "done". */
+   the main actions, warm orange for "act soon", green for "done".
+   Modernized Oct 21 (Neil's choice: same colors, cleaner look): cards float
+   on soft shadows instead of beige borders, rounder corners, more space. */
 :root {
   --ink: #1f2933;
   --ink-soft: #52606d;
   --brand: #1f4e8c;
   --brand-dark: #173b6b;
-  --brand-soft: #e8eef8;
-  --page: #fbf7f0;
+  --brand-soft: #eaf0fa;
+  --page: #f8f4ec;
   --card: #ffffff;
-  --line: #e6dccb;
+  --line: #ebe2d3;
+  --field-line: #a8a091; /* text boxes: darker, so they are easy to find */
+  --shadow-sm: 0 1px 2px rgb(60 45 20 / 0.06), 0 1px 4px rgb(60 45 20 / 0.06);
+  --shadow-md: 0 2px 4px rgb(60 45 20 / 0.04), 0 6px 20px rgb(60 45 20 / 0.08);
+  --radius: 1.25rem;
   --warm: #c2410c;
   --warm-soft: #fdf0e7;
   --red: #b42318;
@@ -54,7 +60,7 @@ body {
 .screen {
   max-width: 32rem;
   margin: 0 auto;
-  padding: calc(1rem + env(safe-area-inset-top)) 0.8rem calc(6rem + env(safe-area-inset-bottom));
+  padding: calc(0.8rem + env(safe-area-inset-top)) 1rem calc(6.5rem + env(safe-area-inset-bottom));
 }
 
 /* The top line: the app name, and "Read it to me". */
@@ -88,20 +94,36 @@ body {
   height: 1.2rem;
 }
 
+/* The app's name, with a small logo: a blue tile with a reply arrow. */
 .app-name {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
   margin: 0;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--brand);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--brand-dark);
+}
+.app-name::before {
+  width: 1.6rem;
+  height: 1.6rem;
+  content: '';
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 7 4 12l5 5'/%3E%3Cpath d='M4 12h10a6 6 0 0 1 6 6'/%3E%3C/svg%3E")
+      center / 1rem no-repeat,
+    linear-gradient(135deg, #2b63ad, var(--brand-dark));
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-sm);
 }
 
 h1,
 .page-title {
-  margin: 0.2rem 0 0;
-  font-size: 1.6rem;
+  margin: 0.6rem 0 0;
+  font-size: 1.65rem;
+  font-weight: 800;
   line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 h2 {
@@ -132,11 +154,11 @@ p {
 
 .card {
   margin-top: 1rem;
-  padding: 1rem;
+  padding: 1.1rem 1.2rem;
   background: var(--card);
-  border: 1.5px solid var(--line);
-  border-radius: 1rem;
-  box-shadow: 0 1px 3px rgba(80, 60, 20, 0.07);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
 }
 
 .card p + p {
@@ -155,9 +177,9 @@ p {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 2.8rem;
+  min-height: 3rem;
   margin-top: 0.75rem;
-  padding: 0.6rem 1rem;
+  padding: 0.65rem 1.1rem;
   font: inherit;
   font-weight: 700;
   text-align: center;
@@ -166,16 +188,23 @@ p {
   border: 2px solid var(--brand);
   border-radius: 999px;
   cursor: pointer;
+  transition:
+    transform 0.08s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.button:active {
+  transform: scale(0.98);
 }
 
 .button.primary {
   color: #fff;
-  background: var(--brand);
-  box-shadow: 0 2px 0 var(--brand-dark);
+  background: linear-gradient(180deg, #2a5da0, var(--brand));
+  border-color: var(--brand);
+  box-shadow: 0 6px 16px rgb(31 78 140 / 0.28);
 }
 .button.primary:active {
-  transform: translateY(1px);
-  box-shadow: none;
+  box-shadow: 0 2px 6px rgb(31 78 140 / 0.3);
 }
 
 .button:disabled {
@@ -225,14 +254,72 @@ p {
   color: var(--ink-soft);
 }
 
+/* "See the whole packet": every page, one under the other. */
+.whole-packet {
+  gap: 0.6rem;
+}
+.whole-packet svg {
+  flex: none;
+}
+.packet-pages-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.packet-page {
+  margin: 1rem 0 0;
+}
+.packet-page img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  box-shadow: 0 2px 10px rgb(31 41 51 / 0.12);
+  background: #fff;
+}
+.packet-page figcaption {
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+/* "The county has this on file": one line it printed, with Still right / It changed. */
+.card.on-file {
+  padding: 0.9rem 1rem 1rem;
+}
+.on-file-line {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.card.on-file .button-row .button {
+  margin-top: 0.6rem;
+}
+
+/* Information the person should notice, like "the AI can't be reached". Not
+   an error: the app carries on without it. */
+.notice {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  color: var(--brand-dark);
+  background: var(--brand-soft);
+  border: 1.5px solid rgb(31 78 140 / 0.25);
+  border-left: 0.35rem solid var(--brand);
+  border-radius: 0.9rem;
+}
+
 .error {
   margin-top: 1rem;
-  padding: 0.8rem 1rem;
+  padding: 0.85rem 1rem;
   font-weight: 600;
   color: var(--red);
   background: var(--red-soft);
-  border: 2px solid var(--red);
-  border-radius: 0.8rem;
+  border: 1.5px solid rgb(180 35 24 / 0.45);
+  border-left: 0.35rem solid var(--red);
+  border-radius: 0.9rem;
 }
 
 /* The photo of the letter. */
@@ -242,9 +329,9 @@ p {
   max-height: 22rem;
   margin-top: 1rem;
   object-fit: contain;
-  background: #eee;
-  border: 2px solid var(--line);
-  border-radius: 0.8rem;
+  background: #ece7de;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
 }
 
 progress {
@@ -276,14 +363,22 @@ progress {
   display: block;
   width: 100%;
   margin-top: 0.75rem;
-  padding: 0.9rem 1rem;
+  padding: 1rem 1.1rem;
   font: inherit;
   text-align: left;
   color: var(--ink);
   background: var(--card);
   border: 2px solid var(--line);
-  border-radius: 1rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    transform 0.08s;
+}
+.choice:active {
+  transform: scale(0.99);
 }
 .choice:hover,
 .choice.on {
@@ -315,9 +410,10 @@ progress {
 .fact {
   display: block;
   margin-top: 0.8rem;
-  padding: 0.7rem;
-  border: 2px solid var(--line);
-  border-radius: 0.7rem;
+  padding: 0.8rem 0.9rem;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 1rem;
 }
 .fact.flagged {
   background: var(--amber-soft);
@@ -332,14 +428,24 @@ progress {
 .field input,
 .field textarea {
   width: 100%;
-  min-height: 2.6rem;
-  margin-top: 0.3rem;
-  padding: 0.4rem 0.6rem;
+  min-height: 3rem;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.8rem;
   font: inherit;
   color: var(--ink);
   background: #fff;
-  border: 2px solid #8f8a80;
-  border-radius: 0.5rem;
+  border: 2px solid var(--field-line);
+  border-radius: 0.8rem;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.fact input:focus,
+.field input:focus,
+.field textarea:focus {
+  border-color: var(--brand);
+  outline: none;
+  box-shadow: 0 0 0 4px rgb(31 78 140 / 0.18);
 }
 .field textarea {
   min-height: 4.5rem;
@@ -411,10 +517,11 @@ progress {
 }
 .read-from-papers {
   margin: 0.5rem 0;
-  padding: 0.7rem 0.8rem;
+  padding: 0.8rem 0.9rem;
   background: var(--amber-soft);
-  border: 2px solid var(--amber-line);
-  border-radius: 0.7rem;
+  border: 1.5px solid var(--amber-line);
+  border-left: 0.35rem solid var(--amber-line);
+  border-radius: 0.9rem;
 }
 .read-from-papers ul {
   margin: 0.3rem 0 0 1.1rem;
@@ -534,10 +641,11 @@ progress {
 .event {
   position: relative;
   margin-top: 0.8rem;
-  padding: 0.8rem 1rem 0.8rem 1.4rem;
+  padding: 0.9rem 1.1rem 0.9rem 1.5rem;
   background: var(--card);
-  border: 2px solid var(--line);
-  border-radius: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-sm);
 }
 /* The dot on the left edge, like a line of beads. */
 .event::before {
@@ -589,10 +697,12 @@ progress {
 /* "The county may have made a mistake." */
 .finding {
   margin-top: 1rem;
-  padding: 1rem;
+  padding: 1rem 1.1rem;
   background: var(--amber-soft);
-  border: 2px solid var(--amber-line);
-  border-radius: 0.8rem;
+  border: 1.5px solid var(--amber-line);
+  border-left: 0.35rem solid var(--amber-line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
 }
 .finding h2 {
   display: flex;
@@ -654,8 +764,11 @@ progress {
   display: flex;
   justify-content: center;
   padding-bottom: env(safe-area-inset-bottom);
-  background: var(--card);
-  border-top: 2px solid var(--line);
+  background: rgb(255 255 255 / 0.92);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 20px rgb(60 45 20 / 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .tabbar-inner {
   display: flex;
@@ -677,16 +790,23 @@ progress {
   color: var(--ink-soft);
   background: none;
   border: none;
-  border-top: 0.25rem solid transparent;
   cursor: pointer;
 }
+/* The icon sits in a pill, which fills in blue on the open tab. */
 .tab svg {
+  box-sizing: content-box;
   width: 1.4rem;
   height: 1.4rem;
+  padding: 0.2rem 1.1rem;
+  border-radius: 999px;
+  transition: background 0.15s;
 }
 .tab.on {
-  color: var(--brand);
-  border-top-color: var(--brand);
+  color: var(--brand-dark);
+}
+.tab.on svg {
+  background: var(--brand-soft);
+  box-shadow: inset 0 0 0 1.5px rgb(31 78 140 / 0.25);
 }
 
 /* Only while developing: what the app read, for fixing problems. */
@@ -710,7 +830,7 @@ details.dev summary {
 .signature-pad {
   display: block;
   width: 100%;
-  height: 9rem;
+  height: 10rem;
   margin-top: 0.6rem;
   touch-action: none; /* so signing does not scroll the page */
   background:
@@ -731,12 +851,13 @@ details.dev summary {
   gap: 0.4rem;
   align-items: center;
   margin-top: 1rem;
-  padding: 0.8rem 1rem;
+  padding: 0.85rem 1rem;
   font-weight: 700;
   color: var(--green);
   background: var(--green-soft);
-  border: 2px solid var(--green);
-  border-radius: 0.8rem;
+  border: 1.5px solid rgb(47 122 61 / 0.4);
+  border-left: 0.35rem solid var(--green);
+  border-radius: 0.9rem;
 }
 .checklist {
   margin: 0.5rem 0 0;
@@ -765,10 +886,11 @@ details.dev summary {
 /* The letter screen: the one thing to do, in a box that stands out. */
 .job {
   margin-top: 1rem;
-  padding: 1rem 1.1rem;
-  background: var(--brand-soft);
-  border: 2px solid var(--brand);
-  border-radius: 1rem;
+  padding: 1.15rem 1.2rem;
+  background: linear-gradient(160deg, #f2f6fd, var(--brand-soft));
+  border: 1.5px solid rgb(31 78 140 / 0.22);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
 }
 .job-task {
   font-size: 1.3rem;
@@ -798,7 +920,7 @@ details.dev summary {
 /* The date has passed: the box turns warm orange so it can't be missed. */
 .job.late {
   background: var(--warm-soft);
-  border-color: var(--warm);
+  border: 2px solid var(--warm);
 }
 .job.late .job-task {
   color: var(--warm);
@@ -808,7 +930,7 @@ details.dev summary {
   background: var(--warm);
 }
 .button.big {
-  min-height: 3.4rem;
+  min-height: 3.6rem;
   font-size: 1.15rem;
 }
 
@@ -831,14 +953,16 @@ details.dev summary {
 }
 .paper-row {
   margin-top: 0.75rem;
-  padding: 0.8rem 1rem;
+  padding: 0.9rem 1.1rem;
   background: var(--card);
-  border: 2px solid var(--line);
-  border-radius: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
 }
 .paper-row.done {
-  border-color: var(--green);
   background: var(--green-soft);
+  border: 1.5px solid rgb(47 122 61 / 0.35);
+  border-left: 0.35rem solid var(--green);
 }
 .paper-row-name {
   font-weight: 700;
@@ -871,12 +995,13 @@ details.dev summary {
 /* The cover letter on "Look over your reply", laid out like the printed page. */
 .letter {
   margin-top: 0.5rem;
-  padding: 1rem;
+  padding: 1.1rem;
   font-size: 0.85rem;
   line-height: 1.45;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 0.4rem;
+  box-shadow: 0 2px 10px rgb(31 41 51 / 0.1);
 }
 .letter p + p,
 .letter ul + p {
@@ -923,10 +1048,11 @@ details.dev summary {
 /* "More" sections the person opens only if they want them. */
 details.more {
   margin-top: 1rem;
-  padding: 0.2rem 1rem 0.8rem;
+  padding: 0.2rem 1.1rem 0.8rem;
   background: var(--card);
-  border: 1.5px solid var(--line);
-  border-radius: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
 }
 details.more > summary {
   min-height: 2.6rem;
@@ -953,7 +1079,8 @@ details.more .card {
 /* The watcher's warnings: deadlines 7 days away or less, county mistakes. */
 .card.warning {
   background: var(--warm-soft);
-  border: 2px solid var(--warm);
+  border: 1.5px solid rgb(194 65 12 / 0.4);
+  border-left: 0.35rem solid var(--warm);
 }
 .card.warning h2 {
   color: var(--warm);

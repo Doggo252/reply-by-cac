@@ -10,7 +10,9 @@ import type { PaperAnswer } from './PaperSteps'
 import { helpFor } from './paperHelp'
 import { whatToSend } from './letterJob'
 import { letterKey, listPapers, loadProgress, saveProgress, type Paper, type SavedLetter } from './storage'
-import { PARENT, PROOF_PAPERS, renewalPapers, type RenewalAnswers } from './renewalForm'
+import { LETTER_PAPER, PARENT, PROOF_PAPERS, renewalPapers, type RenewalAnswers } from './renewalForm'
+import { birthDateFromLetter } from './aboutFromLetter'
+import { todayOnThisPhone } from './deadlines'
 import type { RenewalProps } from './RenewalQuestions'
 
 // The renewal form, as it is listed in the reply. The app fills it in.
@@ -53,9 +55,14 @@ export function usePapers(letter: SavedLetter) {
   // the person picks them first. null: not picked yet.
   const [pickedBoxes, setPickedBoxes] = useState<string[] | null>(start?.pickedBoxes ?? null)
   const [answers, setAnswers] = useState<Record<string, PaperAnswer>>((start?.answers ?? {}) as Record<string, PaperAnswer>)
-  const [renewal, setRenewal] = useState<RenewalAnswers>(start?.renewal ?? {})
+  // A new renewal starts with the date of birth printed on the letter, if the
+  // phone could read it. It shows on the answers list as "Read from: Your letter".
+  const [born] = useState(() => (letter.text ? birthDateFromLetter(letter.text, todayOnThisPhone()) : null))
+  const [renewal, setRenewal] = useState<RenewalAnswers>(start?.renewal ?? (born ? { date_of_birth: born } : {}))
   const [renewalStep, setRenewalStep] = useState(start?.renewalStep ?? 'start')
-  const [fromPapers, setFromPapers] = useState<Record<string, string>>(start?.fromPapers ?? {})
+  const [fromPapers, setFromPapers] = useState<Record<string, string>>(
+    start?.fromPapers ?? (born ? { date_of_birth: LETTER_PAPER } : {}),
+  )
   const [papers, setPapers] = useState<Paper[]>([]) // everything saved in My papers
   const [chosen, setChosen] = useState<string[]>(start?.chosen ?? []) // the photos going in the reply
 

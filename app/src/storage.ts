@@ -116,8 +116,14 @@ export type SavedLetter = {
   // The words read off the photo, for the AI helper (it blanks private
   // details before anything is sent). Letters saved before Oct 17 have none.
   text?: string
+  // A second, cleaner reading of the same photo, only to find the person's
+  // address when the first reading missed it (Capture.tsx). Never sent anywhere.
+  addressText?: string
   savedAt?: string
 }
+
+// The letter's words for filling in "About you": both readings.
+export const textForAddress = (letter: SavedLetter) => [letter.text, letter.addressText].filter(Boolean).join('\n')
 
 // localStorage can be blocked (private browsing), so every use is wrapped
 // and the app still works, it just forgets on reload.

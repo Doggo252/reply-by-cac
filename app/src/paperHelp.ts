@@ -16,7 +16,7 @@ export const HELP: [RegExp, PaperHelp][] = [
   }],
   [/property form|property insert/i, {
     what: 'A short form about anything you own, like a house, a car or money in the bank. The county sends it with the renewal form.',
-    where: 'Look in the same envelope as your letter. Fill it in with the same answers you just gave us.',
+    where: "Look in the same envelope as your letter. It's a separate sheet, not one of the renewal form's numbered pages. Fill it in with the same answers you just gave us.",
     noneLabel: "The county didn't send me one",
     noneLine: 'The county did not send me a property form with my renewal.',
   }],

@@ -24,12 +24,14 @@ import { check } from './checker'
 import { todayOnThisPhone } from './deadlines'
 import { readText } from './ocr'
 import { buildPacket, type AboutYou, type PacketInput } from './packet'
-import { AboutForm, Done, fetchForm } from './ReplyPacket'
+import { AboutForm, attachmentFor, Done, loadForms } from './ReplyPacket'
+import PacketPreview from './PacketPreview'
 import PaperSteps from './PaperSteps'
 import { helpFor } from './paperHelp'
 import { CoverPreview, PhotoPreview, RenewalPreview, StatementPreview, letterValue } from './ReplyPreview'
 import SignaturePad from './SignaturePad'
-import { addPaper, listEvents, listPapers, loadAbout, saveAbout, saveHelperLog, type Paper, type SavedLetter } from './storage'
+import PhotoTip from './PhotoTip'
+import { addPaper, listEvents, listPapers, loadAbout, saveAbout, saveHelperLog, textForAddress, type Paper, type SavedLetter } from './storage'
 import { allowedPicks, onePerPaper, usePapers } from './usePapers'
 import { factLabel, savedOn } from './words'
 import { t } from './language'
@@ -107,7 +109,7 @@ export default function AgentHelper({ letter, onBack, onManual }: {
     return (
       <AboutForm
         about={about}
-        letterText={letter.text}
+        letterText={textForAddress(letter)}
         onBack={onBack}
         onSave={(next) => {
           saveAbout(next)
@@ -257,33 +259,7 @@ function makeWorld(
     // Only called by build_packet, after its checks passed. The same forms,
     // the same papers list and the same buildPacket as step by step.
     async build(packet, drafts, signature) {
-      const { renewalForm } = latest.current
-      const [hearingRequest, renewalSignaturePage, renewalFormBytes] = await Promise.all([
-        fetchForm('/forms/hearing-request.pdf'),
-        fetchForm('/forms/mc210rv-signature-page.pdf'),
-        renewalForm ? fetchForm('/forms/mc210rv.pdf') : Promise.resolve(undefined),
-      ])
-      const chosen = (await papers()).filter((p) => packet.paperIds.includes(p.id))
-      const attachments = await Promise.all(
-        chosen.map(async (p) => ({ name: p.name, type: p.type, bytes: new Uint8Array(await p.file.arrayBuffer()) })),
-      )
-      const hearing = drafts.find((d) => d.kind === 'hearing_request')
-      const restore = drafts.find((d) => d.kind === 'restore_letter')
-      const input: PacketInput = {
-        letterType: letter.letterType,
-        about,
-        facts: packet.formFacts,
-        today: todayOnThisPhone(),
-        hearing: hearing ? { reason: hearing.reason } : null,
-        undoLetter: restore ? restoreLetterBody(restore) : null,
-        toSend: latest.current.included,
-        statements: latest.current.statements,
-        later: latest.current.later,
-        renewal: renewalForm ? latest.current.renewal : undefined,
-        attachments,
-        signature,
-        forms: { hearingRequest, renewalSignaturePage, renewalForm: renewalFormBytes },
-      }
+      const input = await helperPacketInput(letter, about, latest.current, packet.paperIds, drafts, packet.formFacts, signature)
       // buildPacket checks the checker and the signature once more itself.
       const bytes = await buildPacket(input, check(packet.formFacts, confirmed(letter)), true)
       const name = `Reply packet, ${savedOn(new Date().toISOString())}.pdf`
@@ -295,6 +271,38 @@ function makeWorld(
 
 const confirmed = (letter: SavedLetter) =>
   Object.fromEntries(Object.entries(letter.facts).filter(([field]) => field !== 'ask'))
+
+// Everything that goes in the packet from the helper's choices, with the
+// signature or without it yet (the "whole packet" preview). The same forms,
+// papers list and buildPacket as step by step.
+async function helperPacketInput(
+  letter: SavedLetter,
+  about: AboutYou,
+  current: Papers,
+  paperIds: string[],
+  drafts: Draft[],
+  formFacts: PacketInput['facts'],
+  signature: Uint8Array | null,
+): Promise<PacketInput> {
+  const chosen = (await listPapers()).filter((p) => !isReplyPacket(p) && paperIds.includes(p.id))
+  const hearing = drafts.find((d) => d.kind === 'hearing_request')
+  const restore = drafts.find((d) => d.kind === 'restore_letter')
+  return {
+    letterType: letter.letterType,
+    about,
+    facts: formFacts,
+    today: todayOnThisPhone(),
+    hearing: hearing ? { reason: hearing.reason } : null,
+    undoLetter: restore ? restoreLetterBody(restore) : null,
+    toSend: current.included,
+    statements: current.statements,
+    later: current.later,
+    renewal: current.renewalForm ? current.renewal : undefined,
+    attachments: await Promise.all(chosen.map(attachmentFor)),
+    signature,
+    forms: await loadForms(current.renewalForm),
+  }
+}
 
 // The live action log (TOOLS.md, Section 6): plain words, with the exact
 // records folded away underneath for anyone who wants them.
@@ -392,6 +400,14 @@ function ReviewScreen({ view, letter, about, papers, answer, onStop }: {
           {t('✓ The dates and numbers match your letter.')}
         </p>
       )}
+      {/* The real pages with the choices on this screen, unsigned (final=false). */}
+      <PacketPreview
+        make={async () => {
+          const keptDrafts = drafts.filter((d) => kept.includes(d.id)).map((d) => ({ ...d, reason: reasons[d.id] ?? d.reason }))
+          const input = await helperPacketInput(letter, about, papers, chosen, keptDrafts, formFacts, null)
+          return buildPacket(input, check(formFacts, confirmed(letter)), false)
+        }}
+      />
 
       <CoverPreview
         letterType={letter.letterType}
@@ -577,6 +593,7 @@ function PhotoScreen({ paperName, answer }: { paperName: string; answer: (paperI
           }}
         />
       </label>
+      <PhotoTip />
       <button className="button" onClick={() => answer(null)}>
         {t("I don't have it right now")}
       </button>

@@ -11,6 +11,11 @@ import { PDFCheckBox, PDFDocument, PDFTextField, StandardFonts } from 'pdf-lib'
 import { longDate, printable, usDate, type AboutYou, type PaperFacts } from './packet'
 import { t } from './language'
 import { inWords } from './words'
+import { medicareParts, onFileRows, type OnFileRow } from './countyForm'
+
+// The name boxes of the three income lines on page 5. The form names the
+// second and third ones the other way round.
+const INCOME_NAME_FIELDS = ['income_name_1', 'income_name_3', 'income_name_2']
 
 // The answers, by question id. Yes/no questions hold "yes" or "no". An empty
 // string means the person tapped "I don't know"; a missing key means the
@@ -166,7 +171,11 @@ export const FROM_PAPER_NAMES: Record<string, string> = {
   medicare_number: 'Medicare number',
   medicare_part_b_premium: 'Medicare Part B each month',
   life_insurance_value: 'Life insurance cash value',
+  date_of_birth: 'Date of birth', // read from the letter itself (usePapers.ts)
 }
+
+// The paper the date of birth is read from.
+export const LETTER_PAPER = 'Your letter'
 
 // The yes/no question each of those belongs to. A fact read from a paper
 // means the answer to it is yes.
@@ -307,6 +316,16 @@ export async function fillRenewalForm(
     if (value.includes('\n')) {
       field.enableMultiline()
       field.setFontSize(8)
+    } else {
+      // Long words in a narrow box get smaller, instead of being cut off
+      // ("Golden State Credit Union" in the property box, Oct 21).
+      // Some boxes wrap onto a hidden second line instead, so the size is
+      // always set here: 10, or smaller until it fits.
+      const width = field.acroField.getWidgets()[0]?.getRectangle().width ?? 0
+      const text = printable(value)
+      let size = 10
+      while (width && size > 5 && font.widthOfTextAtSize(text, size) > width - 4) size -= 0.5
+      field.setFontSize(size)
     }
     field.setText(printable(value))
   }
@@ -354,12 +373,53 @@ export async function fillRenewalForm(
     tick('household_correct_1-1')
   }
 
-  // Page 6: income, one row each, up to the form's three rows.
+  // Pages 5, 9 and 11: what the county printed in its "Review" boxes, copied
+  // back in, with the person's Yes ("still right") or No beside each line
+  // (countyForm.ts). Below, a line that is still right is not written again
+  // as an update: the form says to write only new or changed information.
+  const onFile = onFileRows(a)
+  const stillRight = (test: (row: OnFileRow) => boolean) => onFile.some((row) => row.correct === true && test(row))
+  const yesNo = (row: OnFileRow) => (row.correct ? 1 : 2) // the left box is Yes
+  const amountsOn = (row: OnFileRow) => row.amounts.map((amount) => money(amount)).join(' / ')
+  onFile
+    .filter((row) => row.section === 'income')
+    .slice(0, 3)
+    .forEach((row, i) => {
+      write(INCOME_NAME_FIELDS[i], name)
+      write(`income_source_${i + 1}`, row.kind)
+      write(`income_gross_${i + 1}`, row.amounts[0] ? money(row.amounts[0]) : '')
+      write(`income_often_${i + 1}`, row.often)
+      tick(`income_correct_${i + 1}-${yesNo(row)}`)
+    })
+  onFile
+    .filter((row) => row.section === 'resources')
+    .slice(0, 3)
+    .forEach((row, i) => {
+      write(`resources_name_${i + 1}`, name)
+      write(`resources_type_${i + 1}`, row.kind)
+      write(`resources_details_${i + 1}`, row.details)
+      write(`resources_amount_${i + 1}`, amountsOn(row))
+      tick(`resources_correct_${i + 1}-${yesNo(row)}`)
+    })
+  onFile
+    .filter((row) => row.section === 'medicare')
+    .slice(0, 2)
+    .forEach((row, i) => {
+      const parts = medicareParts(row)
+      write(`medicare_name_${i + 1}`, name)
+      for (const part of ['a', 'b', 'c', 'd'] as const) write(`medicare_part${part}_${i + 1}`, parts[part] ? money(parts[part]) : '')
+      tick(`medicare_correct_${i + 1}-${yesNo(row)}`)
+    })
+  const COUNTY_INCOME = ['Social Security', 'Pension', 'Earnings from work']
+
+  // Page 6: new or changed income, one row each, up to the form's three rows.
   const incomes: [string, string | undefined][] = []
-  if (a.social_security === 'yes') incomes.push(['Social Security', a.social_security_amount])
-  if (a.pension === 'yes') incomes.push(['Pension', a.pension_amount])
-  if (a.job === 'yes') incomes.push(['Earnings from work', a.job_amount])
-  if (a.other_income === 'yes') incomes.push([a.other_income_source || 'Other income', a.other_income_amount])
+  if (a.social_security === 'yes' && !stillRight((r) => r.kind === 'Social Security')) incomes.push(['Social Security', a.social_security_amount])
+  if (a.pension === 'yes' && !stillRight((r) => r.kind === 'Pension')) incomes.push(['Pension', a.pension_amount])
+  if (a.job === 'yes' && !stillRight((r) => r.kind === 'Earnings from work')) incomes.push(['Earnings from work', a.job_amount])
+  if (a.other_income === 'yes' && !stillRight((r) => r.section === 'income' && !COUNTY_INCOME.includes(r.kind))) {
+    incomes.push([a.other_income_source || 'Other income', a.other_income_amount])
+  }
   incomes.slice(0, 3).forEach(([source, amount], i) => {
     write(`update_income_name_${i + 1}`, name)
     write(`update_income_source_${i + 1}`, source)
@@ -388,28 +448,36 @@ export async function fillRenewalForm(
     tick('d-2')
   }
 
-  // Page 10: bank accounts, life insurance, other property, and the car.
+  // Page 10: new or changed bank accounts, life insurance, other property, and the car.
   const resources: [string, string | undefined, string][] = []
-  if (a.bank === 'yes') resources.push(['Bank account', a.bank_name, a.bank_balance ? `Balance: $${money(a.bank_balance)}` : ''])
-  if (a.life_insurance === 'yes') {
+  if (a.bank === 'yes' && !stillRight((r) => /account/.test(r.kind))) {
+    resources.push(['Bank account', a.bank_name, a.bank_balance ? `Balance: $${money(a.bank_balance)}` : ''])
+  }
+  if (a.life_insurance === 'yes' && !stillRight((r) => r.kind === 'Life insurance')) {
     resources.push(['Life insurance', a.life_insurance_company, a.life_insurance_value ? `Cash value: $${money(a.life_insurance_value)}` : ''])
   }
-  if (a.other_property === 'yes') resources.push(['House or land', a.other_property_details, ''])
+  if (a.other_property === 'yes' && !stillRight((r) => r.kind === 'House or land')) resources.push(['House or land', a.other_property_details, ''])
   resources.slice(0, 3).forEach(([type, details, report], i) => {
     write(`update_resources_name_${i + 1}`, name)
     write(`update_resources_type_${i + 1}`, type)
     write(`update_resources_details_${i + 1}`, details)
     write(`update_resources_report_${i + 1}`, report)
   })
-  if (a.car === 'yes') {
+  // "Previously reported vehicles: do you need to change the value or amount
+  // owed?" No, if the county's line for the car is still right.
+  const carOnFile = onFile.find((row) => row.kind === 'Vehicle')
+  if (carOnFile?.correct) {
+    tick('f-2')
+  } else if (a.car === 'yes') {
+    if (carOnFile) tick('f-1')
     write('vehicle_name', name)
     write('vehicle_make', a.car_make)
     write('vehicle_worth', a.car_worth ? money(a.car_worth) : '')
     write('vehicle_owe', a.car_owe ? money(a.car_owe) : '')
   }
 
-  // Page 11: Medicare.
-  if (a.medicare === 'yes') {
+  // Page 11: new or changed Medicare.
+  if (a.medicare === 'yes' && !stillRight((r) => r.section === 'medicare')) {
     write('update_medicare_name_1', name)
     write('update_medicare_number_1', a.medicare_number)
     write('update_medicare_partb_1', a.medicare_part_b_premium ? money(a.medicare_part_b_premium) : '')

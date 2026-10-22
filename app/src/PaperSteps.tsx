@@ -14,7 +14,8 @@
 import { useState } from 'react'
 import { helpFor, MC355_BOXES } from './paperHelp'
 import { checkPhoto, type PhotoCheck } from './photoCheck'
-import { readText } from './ocr'
+import { readPaper, readText } from './ocr'
+import PhotoTip from './PhotoTip'
 import { todayOnThisPhone } from './deadlines'
 import { blankFacts, proofKind, renewalLines } from './renewalForm'
 import { readProof } from './proofRead'
@@ -80,7 +81,8 @@ export default function PaperSteps(props: {
     setCheck({ item, paper, result: null })
     window.scrollTo(0, 0)
     try {
-      const { text } = await readText(file, () => {})
+      // Tries twice if the first reading doesn't look like the right paper (ocr.ts).
+      const { text } = await readPaper(file, (read) => checkPhoto(item, read, personName, todayOnThisPhone()).ok)
       fillBlanks(item, paper, text)
       setCheck({ item, paper, result: checkPhoto(item, text, personName, todayOnThisPhone()) })
     } catch (error) {
@@ -182,6 +184,7 @@ export default function PaperSteps(props: {
               {t('Take it again')}
               {cameraInput((file) => photo(file, check.item, [check.paper.id]))}
             </label>
+            <PhotoTip />
             <button className="button" onClick={() => setCheck(null)}>
               {t('Use it anyway')}
             </button>
@@ -236,6 +239,7 @@ export default function PaperSteps(props: {
           {earlier ? t('Take a new photo') : t('Take a photo of it')}
           {cameraInput((file) => photo(file, item, earlier ? [earlier.id] : []))}
         </label>
+        {!earlier && <PhotoTip />}
         <button className="button" onClick={() => answer('mail')}>
           {t("I'll put the paper copy in the envelope")}
         </button>

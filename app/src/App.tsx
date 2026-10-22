@@ -14,7 +14,8 @@ import Dashboard from './Dashboard'
 import ReadAloud from './ReadAloud'
 import LanguageChoice from './LanguageChoice'
 import { getLanguage, hasChosenLanguage, setLanguage, t, type Language } from './language'
-import { loadLetter, loadView, saveDrafts, saveLetter, saveProgress, saveView, type SavedLetter } from './storage'
+import { loadLetter, loadMode, loadView, saveDrafts, saveLetter, saveProgress, saveView, type SavedLetter } from './storage'
+import { wakeUpAI } from './online'
 
 type Tab = 'letter' | 'papers'
 // What the My letter tab is showing.
@@ -37,6 +38,10 @@ export default function App() {
   const [results, setResults] = useState(false)
 
   useEffect(() => saveView(view), [view])
+  // In AI mode, wake the AI server up now, so it's ready when it's needed (online.ts).
+  useEffect(() => {
+    if (loadMode() === 'ai') wakeUpAI()
+  }, [])
   // Tell the browser (and the phone's voice) which language the page is in.
   useEffect(() => {
     document.documentElement.lang = language ?? 'en'

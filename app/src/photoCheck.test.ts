@@ -22,6 +22,17 @@ describe('checking a photo', () => {
     expect(check.problems[0]).toMatch(/couldn't read/)
   })
 
+  // Mom's Oct 21 photo, as the phone read it: page 9 of the renewal form,
+  // taken as "the property form".
+  it('a page of the renewal form is caught: the app fills that form in', () => {
+    const page9 = `Resources and property are things you could exchange for money or that you own.
+Review your resources and property information.
+Rosa Delgado Checking Golden State Credit Union 1,850`
+    const check = checkPhoto('The property form that came with it, filled in', page9, 'Rosa Delgado', TODAY)
+    expect(check.ok).toBe(false)
+    expect(check.problems[0]).toMatch(/page of your renewal form/)
+  })
+
   it('the wrong kind of paper is caught', () => {
     const check = checkPhoto('Your newest bank statement', 'PG&E electric bill for Rosa Delgado, due October 2, 2026, amount $84.10', 'Rosa Delgado', TODAY)
     expect(check.problems.some((p) => p.includes("doesn't look like a bank statement"))).toBe(true)

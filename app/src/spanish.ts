@@ -43,9 +43,18 @@ export const SPANISH: Record<string, string> = {
   'For a clear photo': 'Para una foto clara',
   "Lay the letter flat on a table, where there's good light.": 'Ponga la carta plana sobre una mesa, donde haya buena luz.',
   'Get the whole page in the picture.': 'Que salga la página completa en la foto.',
+  "Keep your phone's shadow off the paper.": 'Que la sombra de su teléfono no caiga sobre el papel.',
+  "Tip: lay it flat in good light, keep your phone's shadow off it, and fill the screen with the paper.":
+    'Consejo: póngalo plano con buena luz, que la sombra de su teléfono no caiga encima, y que el papel llene la pantalla.',
   'The photo stays on your phone.': 'La foto se queda en su teléfono.',
   "We'll use AI to help read it.": 'Usaremos IA para ayudar a leerla.',
   "We'll read it on your phone only.": 'La leeremos solo en su teléfono.',
+  "You're offline, so the AI can't help read it right now. We'll read it on your phone, and you can check every fact.":
+    'No tiene internet, así que la IA no puede ayudar a leerla ahora. La leeremos en su teléfono, y usted puede revisar cada dato.',
+  "We couldn't reach the AI just now, so your phone read the letter by itself. Please check each fact.":
+    'No pudimos conectar con la IA, así que su teléfono leyó la carta solo. Por favor, revise cada dato.',
+  "You're offline, so your phone read the letter by itself. Please check each fact.":
+    'No tiene internet, así que su teléfono leyó la carta solo. Por favor, revise cada dato.',
   Change: 'Cambiar',
   'We could not read that photo. Please try again.': 'No pudimos leer esa foto. Por favor, inténtelo otra vez.',
   'Reading your letter': 'Leyendo su carta',
@@ -176,12 +185,82 @@ export const SPANISH: Record<string, string> = {
   '✓ You sent your papers on {date}. Keep your proof, in case the county asks.':
     '✓ Usted envió sus papeles el {date}. Guarde su comprobante, por si el condado lo pide.',
   'Make my reply again': 'Hacer mi respuesta otra vez',
+  // The pages the county filled in (CountyPages.tsx, countyForm.ts)
+  'Do you have the pages the county filled in?': '¿Tiene las páginas que llenó el condado?',
+  "Your renewal packet has pages that say \"Review your information\", with what the county already knows printed in boxes. If you have them, we'll read them, and you just tell us if each line is still right.":
+    'Su paquete de renovación tiene páginas que dicen "Review your information", con lo que el condado ya sabe impreso en cuadros. Si las tiene, las leemos, y usted solo nos dice si cada línea sigue siendo correcta.',
+  'Yes, I have them': 'Sí, las tengo',
+  'No, I only have the letter': 'No, solo tengo la carta',
+  'Page {n} of the renewal form': 'Página {n} del formulario de renovación',
+  Income: 'Ingresos',
+  'Resources and property': 'Bienes y propiedades',
+  'Medicare coverage': 'Cobertura de Medicare',
+  'Find the page that says "{heading}". Take a photo of it.': 'Busque la página que dice "{heading}". Tómele una foto.',
+  "We couldn't read the lines on this page. Try another photo, or skip this page and answer the questions instead.":
+    'No pudimos leer las líneas de esta página. Pruebe con otra foto, o sáltese esta página y conteste las preguntas.',
+  'Take a photo of this page': 'Tomar una foto de esta página',
+  'Nothing is printed in that box': 'No hay nada impreso en ese cuadro',
+  'The county has this on file. Is each line still right?': 'El condado tiene esto en su archivo. ¿Cada línea sigue siendo correcta?',
+  'Check each line against your page. If we read something wrong, tap "It changed" and you can type it.':
+    'Compare cada línea con su página. Si leímos algo mal, toque "Cambió" y podrá escribirlo.',
+  'Still right': 'Sigue igual',
+  'It changed': 'Cambió',
+  'Answer each line first': 'Primero conteste cada línea',
+  'Take the photo again': 'Tomar la foto otra vez',
+  'What the county had on file': 'Lo que el condado tenía en su archivo',
+  '✓ Still right': '✓ Sigue igual',
+  'Your answers': 'Sus respuestas',
+  'Your renewal form': 'Su formulario de renovación',
+  'Part {part}: ${amount} a month': 'Parte {part}: ${amount} al mes',
+  'Medicare, no premiums listed': 'Medicare, sin primas anotadas',
+  'owe ${amount}': 'debe ${amount}',
+  'Social Security': 'Seguro Social',
+  SSI: 'SSI',
+  Pension: 'Pensión',
+  'Earnings from work': 'Sueldo del trabajo',
+  'VA benefits': 'Beneficios de veteranos (VA)',
+  Interest: 'Intereses',
+  'Rental income': 'Ingresos por renta',
+  Unemployment: 'Desempleo',
+  Disability: 'Discapacidad',
+  'Checking account': 'Cuenta de cheques',
+  'Savings account': 'Cuenta de ahorros',
+  'Bank account': 'Cuenta de banco',
+  Vehicle: 'Vehículo',
+  'Life insurance': 'Seguro de vida',
+  'Burial fund': 'Fondo funerario',
+  'House or land': 'Casa o terreno',
+  Investments: 'Inversiones',
+  Cash: 'Efectivo',
+  Monthly: 'Mensual',
+  Annually: 'Anual',
+  Yearly: 'Anual',
+  Weekly: 'Semanal',
+  Daily: 'Diario',
+  Hourly: 'Por hora',
+  Quarterly: 'Cada tres meses',
+  'Every 2 weeks': 'Cada 2 semanas',
+  'Twice a month': 'Dos veces al mes',
+  // The whole packet, page by page (PacketPreview.tsx)
+  'See the whole packet, page by page': 'Ver todo el paquete, página por página',
+  'Your whole packet': 'Todo su paquete',
+  Close: 'Cerrar',
+  "This is exactly what you'll print. Your signature goes in after you sign.":
+    'Esto es exactamente lo que va a imprimir. Su firma se agrega después de firmar.',
+  'To zoom in, spread two fingers on a page.': 'Para acercar, separe dos dedos sobre una página.',
+  'Getting page {n} of {total} ready…': 'Preparando la página {n} de {total}…',
+  'Putting the pages together…': 'Juntando las páginas…',
+  "We couldn't show the pages. Your reply is still fine; you can sign it and look at it after.":
+    'No pudimos mostrar las páginas. Su respuesta está bien; puede firmarla y verla después.',
+  'Page {n} of {total}': 'Página {n} de {total}',
+  'Close the pages': 'Cerrar las páginas',
   // The signature box
   Signed: 'Firmado',
   'Sign above with your finger': 'Firme arriba con el dedo',
   'Sign here with your finger': 'Firme aquí con el dedo',
   Clear: 'Borrar',
-  "You're not online right now, so we'll go step by step.": 'Ahora no tiene internet, así que iremos paso a paso.',
+  "You're offline, so the AI can't help right now. We'll go step by step on your phone.":
+    'No tiene internet, así que la IA no puede ayudar ahora. Iremos paso a paso en su teléfono.',
   'Have a question? Call your worker, {name}, at': '¿Tiene preguntas? Llame a su trabajador del caso, {name}, al',
   'Have a question? Call your worker at': '¿Tiene preguntas? Llame a su trabajador del caso al',
   'More help with this letter': 'Más ayuda con esta carta',
@@ -230,8 +309,10 @@ export const SPANISH: Record<string, string> = {
   'Start over and delete everything': 'Empezar de nuevo y borrar todo',
   'Start over? This deletes your letter, your answers and everything in My papers from this phone. It cannot be undone.':
     '¿Empezar de nuevo? Esto borra de este teléfono su carta, sus respuestas y todo lo que hay en Mis papeles. No se puede deshacer.',
-  "We couldn't explain it right now. The date and steps on your letter screen are still right.":
-    'No pudimos explicarla ahora. La fecha y los pasos en la pantalla de su carta siguen siendo correctos.',
+  "We couldn't reach the AI to explain it right now. The date and steps on your letter screen are still right.":
+    'No pudimos conectar con la IA para explicarla ahora. La fecha y los pasos en la pantalla de su carta siguen siendo correctos.',
+  "You're offline, so the AI can't explain it right now. The date and steps on your letter screen are still right.":
+    'No tiene internet, así que la IA no puede explicarla ahora. La fecha y los pasos en la pantalla de su carta siguen siendo correctos.',
 
   // ---- The watcher ------------------------------------------------------------------------
   'Only 1 day left': 'Solo queda 1 día',
@@ -289,6 +370,9 @@ export const SPANISH: Record<string, string> = {
   "We couldn't read the words on this photo. It may be blurry, too dark, or too far away.":
     'No pudimos leer las palabras de esta foto. Puede estar borrosa, muy oscura o tomada de muy lejos.',
   "This doesn't look like {what}. Check that it's the right paper.": 'Esto no parece {what}. Revise que sea el papel correcto.',
+  "This looks like a page of your renewal form. We fill that form in for you, so you don't need a photo of it.":
+    'Esto parece una página de su formulario de renovación. Nosotros llenamos ese formulario por usted, así que no necesita una foto de él.',
+  'a page of your renewal form': 'una página de su formulario de renovación',
   "We couldn't find your name on it. The county needs papers that show your name.":
     'No encontramos su nombre. El condado necesita papeles que muestren su nombre.',
   'This is from {month}. The county asks for current proof, so a newer one is better.':
@@ -343,8 +427,8 @@ export const SPANISH: Record<string, string> = {
     'Si no lo encuentra, llame a su trabajador del caso y pídale que le envíe otro.',
   'A short form about anything you own, like a house, a car or money in the bank. The county sends it with the renewal form.':
     'Un formulario corto sobre lo que tiene, como una casa, un auto o dinero en el banco. El condado lo envía con el formulario de renovación.',
-  'Look in the same envelope as your letter. Fill it in with the same answers you just gave us.':
-    'Busque en el mismo sobre que su carta. Llénelo con las mismas respuestas que nos acaba de dar.',
+  "Look in the same envelope as your letter. It's a separate sheet, not one of the renewal form's numbered pages. Fill it in with the same answers you just gave us.":
+    'Busque en el mismo sobre que su carta. Es una hoja aparte, no una de las páginas numeradas del formulario de renovación. Llénelo con las mismas respuestas que nos acaba de dar.',
   "The county didn't send me one": 'El condado no me envió uno',
   'A paper that shows what you pay each month for Medicare.': 'Un papel que muestra lo que paga cada mes por Medicare.',
   'Your yearly Social Security benefit letter shows it. So does a Medicare Part B bill.':
@@ -534,6 +618,7 @@ export const SPANISH: Record<string, string> = {
   'Money in the bank': 'Dinero en el banco',
   'Medicare number': 'Número de Medicare',
   'Medicare Part B each month': 'Parte B de Medicare cada mes',
+  'Date of birth': 'Fecha de nacimiento',
   'Life insurance cash value': 'Valor en efectivo del seguro de vida',
 
   // ---- The reply, step by step -----------------------------------------------------------------------

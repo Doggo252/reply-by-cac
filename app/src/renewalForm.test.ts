@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { PDFCheckBox, PDFTextField } from 'pdf-lib'
 import { paperFactsFrom } from './packet'
+import type { OnFileRow } from './countyForm'
 import {
   blankFacts,
   fillRenewalForm,
@@ -137,5 +138,35 @@ describe('filling in the official form', () => {
     const form = doc.getForm()
     expect((form.getField('vehicle_make') as PDFTextField).getText()).toBeUndefined()
     expect((form.getField('update_medicare_number_1') as PDFTextField).getText()).toBeUndefined()
+  })
+
+  // Oct 21: what the county printed goes back in its "Review" boxes with Yes
+  // or No; only what changed is written again as an update.
+  it("copies the county's lines back with Yes or No, and updates only what changed", async () => {
+    const onFile: OnFileRow[] = [
+      { section: 'income', kind: 'Social Security', details: '', amounts: ['1,190.00'], often: 'Monthly', correct: false },
+      { section: 'resources', kind: 'Checking account', details: 'Golden State Credit Union', amounts: ['1,850.00'], often: '', correct: false },
+      { section: 'resources', kind: 'Vehicle', details: '2012 Toyota Corolla', amounts: ['4,500.00', '0.00'], often: '', correct: true },
+      { section: 'medicare', kind: 'Medicare', details: '', amounts: ['0.00', '174.70'], often: '', correct: true },
+    ]
+    const doc = await fillRenewalForm(FORM, { answers: { ...rosa, on_file: JSON.stringify(onFile) }, about, facts, today: '2026-10-21' })
+    const form = doc.getForm()
+    const text = (name: string) => (form.getField(name) as PDFTextField).getText()
+    const ticked = (name: string) => (form.getField(name) as PDFCheckBox).isChecked()
+    // The Review boxes, as the county printed them.
+    expect(text('income_source_1')).toBe('Social Security')
+    expect(text('income_gross_1')).toBe('1,190.00')
+    expect(ticked('income_correct_1-2')).toBe(true) // No: it changed
+    expect(text('resources_details_2')).toBe('2012 Toyota Corolla')
+    expect(text('resources_amount_2')).toBe('4,500.00 / 0.00')
+    expect(ticked('resources_correct_2-1')).toBe(true) // Yes: still right
+    expect(text('medicare_partb_1')).toBe('174.70')
+    expect(ticked('medicare_correct_1-1')).toBe(true)
+    // What changed is written again; what is still right is not.
+    expect(text('update_income_gross_1')).toBe('1,240.00')
+    expect(text('update_resources_report_1')).toBe('Balance: $2,312.45')
+    expect(ticked('f-2')).toBe(true) // the car: no change
+    expect(text('vehicle_make')).toBeUndefined()
+    expect(text('update_medicare_partb_1')).toBeUndefined()
   })
 })

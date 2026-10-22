@@ -50,7 +50,11 @@ export default function Explanation({ facts }: { facts: Record<string, unknown> 
       </div>
       {state === 'loading' && <p className="hint" role="status">{language === 'english' ? 'Writing…' : 'Escribiendo…'}</p>}
       {state === 'failed' && (
-        <p className="hint">{t("We couldn't explain it right now. The date and steps on your letter screen are still right.")}</p>
+        <p className="notice">
+          {navigator.onLine
+            ? t("We couldn't reach the AI to explain it right now. The date and steps on your letter screen are still right.")
+            : t("You're offline, so the AI can't explain it right now. The date and steps on your letter screen are still right.")}
+        </p>
       )}
       {state === 'done' && result && (
         <>

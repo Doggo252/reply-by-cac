@@ -2,6 +2,17 @@
 // and address are blanked before the AI ever sees the letter). It is only a
 // first guess: the person checks it, and types a new address if they moved.
 import type { AboutYou } from './packet'
+import { findDates } from './textFinds'
+
+// The person's date of birth, printed on a renewal letter ("It's time to
+// renew benefits for: Name, Date of birth"). Mom's Oct 21 test: the app asked
+// for it even though it was on the letter. A date at least 18 years ago is a
+// birthday, not a notice or due date. Only one such date, or none.
+export function birthDateFromLetter(text: string, today: string): string | null {
+  const cutoff = `${Number(today.slice(0, 4)) - 18}${today.slice(4)}`
+  const old = findDates(text).filter((date) => date <= cutoff)
+  return old.length === 1 ? old[0] : null
+}
 
 // A person's name after one of the letter's labels, on the same line.
 // The label can be in any case, but the name must look like one: each word
@@ -55,7 +66,9 @@ export function aboutFromLetter(text: string): Partial<AboutYou> {
   const about: Partial<AboutYou> = {}
   const name = nameAfterLabel(text)
   if (name) about.name = name
-  const lines = text.split('\n')
+  // Blank lines are skipped: the photo reader often puts one between the
+  // street and the city, so they no longer looked like an address.
+  const lines = text.split('\n').filter((line) => line.trim() !== '')
   const nameLine = name ? lines.findIndex((l) => /case\s*name|notice\s*for/i.test(l) && l.includes(name)) : -1
   const found = addresses(lines)
   const best =

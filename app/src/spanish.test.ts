@@ -11,6 +11,7 @@ import { FROM_PAPER_NAMES, PROOF_PAPERS, RENEWAL_QUESTIONS, renewalPapers } from
 import { whereToLook } from './Confirm'
 import { whatToSend } from './letterJob'
 import { RENEWAL_FORM } from './usePapers'
+import { COUNTY_WORDS } from './countyForm'
 
 const dir = new URL('.', import.meta.url)
 const source = (file: string) => readFileSync(new URL(file, dir), 'utf-8')
@@ -42,6 +43,7 @@ function sentencesInData(): string[] {
     ...Object.values(PROOF_PAPERS),
     ...renewalPapers(yesToAll),
     ...Object.values(FROM_PAPER_NAMES),
+    ...COUNTY_WORDS,
     ...['notice_date', 'due_date', 'effective_date', 'case_number', 'worker_name', 'worker_phone', 'ask'].flatMap((field) =>
       ['MC_239A', 'MC355', 'MC210_RV'].map((type) => whereToLook(field, type)),
     ),

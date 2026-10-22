@@ -13,6 +13,7 @@ import { listEvents, type SavedLetter } from './storage'
 import { todayOnThisPhone } from './deadlines'
 import { daysLeftWords, jobFor, timing } from './letterJob'
 import { needsRenewalForm } from './usePapers'
+import { useOnline } from './online'
 import { findCountyPhone, findWorkerFax } from './localFacts'
 import { inWords } from './words'
 import { getLanguage, t } from './language'
@@ -270,7 +271,9 @@ export default function LetterHome({ letter, onNewLetter, onAddEvent, onMakeRepl
           {t("I'd rather do it myself, step by step")}
         </button>
       )}
-      {mode === 'ai' && !online && <p className="hint">{t("You're not online right now, so we'll go step by step.")}</p>}
+      {mode === 'ai' && !online && (
+        <p className="notice">{t("You're offline, so the AI can't help right now. We'll go step by step on your phone.")}</p>
+      )}
 
       {facts.worker_phone && !late && (
         <p className="hint">
@@ -293,16 +296,3 @@ export default function LetterHome({ letter, onNewLetter, onAddEvent, onMakeRepl
 }
 
 // True while the phone has internet.
-function useOnline(): boolean {
-  const [online, setOnline] = useState(navigator.onLine)
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine)
-    window.addEventListener('online', update)
-    window.addEventListener('offline', update)
-    return () => {
-      window.removeEventListener('online', update)
-      window.removeEventListener('offline', update)
-    }
-  }, [])
-  return online
-}

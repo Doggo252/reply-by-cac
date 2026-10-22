@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { coverLetter, type CoverLetterInput } from './packet'
 import { FROM_PAPER_NAMES, money, renewalLines, type RenewalAnswers } from './renewalForm'
+import { COUNTY_PAPER } from './countyForm'
 import type { Paper } from './storage'
 import { inWords } from './words'
 import { getLanguage, t } from './language'
@@ -51,7 +52,8 @@ export function RenewalPreview({ answers, fromPapers, onChange }: {
 }) {
   // Answers read off a photo, by the phone or the AI helper. Shown on their
   // own, so the person checks each one against the paper.
-  const read = Object.entries(fromPapers).filter(([id]) => answers[id])
+  // Lines the person already checked on the county's own pages are left out.
+  const read = Object.entries(fromPapers).filter(([id, paper]) => answers[id] && paper !== COUNTY_PAPER && FROM_PAPER_NAMES[id])
   return (
     <div className="card preview">
       <p className="preview-label">{t('Then your renewal form (MC 210 RV), filled in')}</p>
@@ -63,7 +65,14 @@ export function RenewalPreview({ answers, fromPapers, onChange }: {
           <ul>
             {read.map(([id, paper]) => (
               <li key={id}>
-                {t(FROM_PAPER_NAMES[id] ?? id)}: <strong>{id.endsWith('_name') || id === 'medicare_number' ? answers[id] : `$${money(answers[id])}`}</strong>{' '}
+                {t(FROM_PAPER_NAMES[id] ?? id)}:{' '}
+                <strong>
+                  {id === 'date_of_birth'
+                    ? inWords(answers[id], false)
+                    : id.endsWith('_name') || id === 'medicare_number'
+                      ? answers[id]
+                      : `$${money(answers[id])}`}
+                </strong>{' '}
                 <span className="small">{t('(from {paper})', { paper: t(paper).replace(/^./, (c) => c.toLowerCase()) })}</span>
               </li>
             ))}
