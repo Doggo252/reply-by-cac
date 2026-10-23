@@ -13,11 +13,11 @@
 
 ## 2. Tools
 
-**How the loop works.** Claude thinks; tools are its hands. Claude asks the loop to run a tool. The code checks that the tool is listed in this file, runs it, always redacts PII from the result, and sends the result back to Claude. Every tool returns `{ ok: true, ... }` or `{ ok: false, reason }`.
+**How the loop works.** Gemini thinks; tools are its hands. Gemini asks the loop to run a tool. The code checks that the tool is listed in this file, runs it, always redacts PII from the result, and sends the result back to Gemini. Every tool returns `{ ok: true, ... }` or `{ ok: false, reason }`.
 
 **Two kinds of refusal:**
 
-- **Soft refuse:** the tool returns `{ ok: false, reason }`, the loop logs it, and Claude can try something else.
+- **Soft refuse:** the tool returns `{ ok: false, reason }`, the loop logs it, and Gemini can try something else.
 - **Hard stop:** the loop ends and the user sees a plain message. Used only for `build_packet`, PII redaction failures, lost internet, and the limits in Section 5.
 
 Unless an entry says "hard stop", a failed precondition is a soft refuse.
@@ -61,7 +61,7 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
 
 ### get_paper_text
 
-- **What it does:** returns the PII-redacted text of one paper so Claude can tell what kind of paper it is.
+- **What it does:** returns the PII-redacted text of one paper so Gemini can tell what kind of paper it is.
 - **Inputs:** `paper_id` (text)
 - **Output:** `{ ok: true, paper_id, pii_redacted_text }` or `{ ok: false, reason }`
 - **Preconditions (checked in code, not by the AI):**
@@ -107,30 +107,30 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
 
 ### draft_hearing_request
 
-- **What it does:** for MC 239 A letters only, creates a draft hearing request. Claude supplies the reason for disagreeing; the code fills in case number, dates and county from the confirmed facts. If this run already has a hearing request draft for the letter, the new draft replaces it.
+- **What it does:** for MC 239 A letters only, creates a draft hearing request. Gemini supplies the reason for disagreeing; the code fills in case number, dates and county from the confirmed facts. If this run already has a hearing request draft for the letter, the new draft replaces it.
 - **Inputs:** `letter_id` (text), `reason_text` (text)
 - **Output:** `{ ok: true, draft_id }` or `{ ok: true, draft_id, reason_left_blank: true }` or `{ ok: false, reason }`
 - **Preconditions (checked in code, not by the AI):**
   - letter exists and `letter_type` is MC 239 A
   - `reason_text` contains no date that is not in the confirmed facts or the timeline
-- **If a precondition fails:** soft refuse, so Claude can rewrite the reason. On the third date rejection in a run, the code saves the draft with an empty reason and returns ok (Section 5).
+- **If a precondition fails:** soft refuse, so Gemini can rewrite the reason. On the third date rejection in a run, the code saves the draft with an empty reason and returns ok (Section 5).
 - **Why it is not locked:** it is only a draft the review screen shows before anything is approved, and the user can remove it there.
 
 ### draft_restore_letter
 
-- **What it does:** creates a draft restore letter for a mistake found by `check_county_mistake`. Claude supplies the plain-words reason; the code fills in case number, dates, county and the law citations stored in the county-mistake rules. If this run already has a restore letter draft for the letter, the new draft replaces it.
+- **What it does:** creates a draft restore letter for a mistake found by `check_county_mistake`. Gemini supplies the plain-words reason; the code fills in case number, dates, county and the law citations stored in the county-mistake rules. If this run already has a restore letter draft for the letter, the new draft replaces it.
 - **Inputs:** `letter_id` (text), `mistake_id` (text), `reason_text` (text)
 - **Output:** `{ ok: true, draft_id }` or `{ ok: true, draft_id, reason_left_blank: true }` or `{ ok: false, reason }`
 - **Preconditions (checked in code, not by the AI):**
   - `letter_type` is MC 239 A
   - `mistake_id` was returned by `check_county_mistake` for this letter
   - `reason_text` contains no date that is not in the confirmed facts or the timeline
-- **If a precondition fails:** soft refuse, so Claude can rewrite the reason. On the third date rejection in a run, the code saves the draft with an empty reason and returns ok (Section 5). A restore letter is never drafted when no mistake was found.
+- **If a precondition fails:** soft refuse, so Gemini can rewrite the reason. On the third date rejection in a run, the code saves the draft with an empty reason and returns ok (Section 5). A restore letter is never drafted when no mistake was found.
 - **Why it is not locked:** it is only a draft shown on the review screen, and the user can remove it there.
 
 ### propose_packet
 
-- **What it does:** saves Claude's suggested papers and drafts as a proposal. Nothing is approved yet. If the letter already has an approved packet from an earlier run, this starts a new proposal; Claude's new `paper_ids` and `draft_ids` replace the old ones in the proposal, `approved_version` is bumped, and the old check result and signature are cleared. The user still approves everything on the review screen.
+- **What it does:** saves Gemini's suggested papers and drafts as a proposal. Nothing is approved yet. If the letter already has an approved packet from an earlier run, this starts a new proposal; Gemini's new `paper_ids` and `draft_ids` replace the old ones in the proposal, `approved_version` is bumped, and the old check result and signature are cleared. The user still approves everything on the review screen.
 - **Inputs:** `letter_id` (text), `paper_ids` (list), `draft_ids` (list)
 - **Output:** `{ ok: true, packet_id }` or `{ ok: false, reason }`
 - **Preconditions (checked in code, not by the AI):**
@@ -160,8 +160,8 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
   - a proposed or approved packet with this `packet_id` exists
   - every explanation refers to a real yellow box from the last check
   - no explanation contains a date that is not in the confirmed facts or the timeline
-- **If a precondition fails:** soft refuse, so Claude can fix the explanations. Date rejections count on the date counter (Section 5); on the third, the screen opens without that explanation.
-- **Why it is not locked:** it is the user's hand, not Claude's. Claude only opens it and supplies plain-word explanations.
+- **If a precondition fails:** soft refuse, so Gemini can fix the explanations. Date rejections count on the date counter (Section 5); on the third, the screen opens without that explanation.
+- **Why it is not locked:** it is the user's hand, not Gemini's. Gemini only opens it and supplies plain-word explanations.
 
 ### ask_user_to_sign
 
@@ -173,7 +173,7 @@ Unless an entry says "hard stop", a failed precondition is a soft refuse.
   - the stored check result is pass and its version equals the current approved version
   - no signature is already stored for the current approved version
 - **If a precondition fails:** soft refuse.
-- **Why it is not locked:** Claude only asks. The signature never passes through Claude.
+- **Why it is not locked:** Gemini only asks. The signature never passes through Gemini.
 
 ### build_packet (LOCKED)
 
@@ -197,7 +197,7 @@ See Section 3.
   - a signature from the signature pad is stored for this packet
   - the signature's version equals the current approved version
   - no packet has already been built for this `packet_id` and version
-  - papers and drafts are read only from the stored approved packet, never from Claude; drafts the user unticked are not included
+  - papers and drafts are read only from the stored approved packet, never from Gemini; drafts the user unticked are not included
   - the forms for this letter type are loaded by the code from the same templates the manual flow uses
 - **If a precondition fails:** hard stop. Write the reason to the log, end the loop, and show the user a plain message with a button to reopen the review screen.
 - **Why it is locked:** it creates the final signed thing that goes to the county. Everything before it can be redone; this cannot.
@@ -206,15 +206,15 @@ See Section 3.
 
 ## 4. Never
 
-- Claude can only call tools listed in this file. Any other tool name is refused by the code.
-- No letter, paper or timeline text reaches Claude without consent. Every tool result is PII-redacted by the loop before Claude sees it, always. Claude cannot skip this because it is not a tool.
+- Gemini can only call tools listed in this file. Any other tool name is refused by the code.
+- No letter, paper or timeline text reaches Gemini without consent. Every tool result is PII-redacted by the loop before Gemini sees it, always. Gemini cannot skip this because it is not a tool.
 - In phone-only mode the AI helper is never offered, and all `get_` tools refuse.
-- Claude never supplies a signature. Signatures come only from the signature pad.
-- Claude never passes a paper list, a draft, a rule or a signature to `build_packet`. Only a `packet_id`.
-- Claude never adds a draft back after the user removed it. Only the user can change what is in the packet, on the review screen.
-- Claude never answers a question about the person's life on the renewal form (like who lives with them). It only fills in facts printed on a paper, with `fill_renewal_answers`, where the person left the answer blank.
-- Deadline rules, county-mistake rules and law citations come only from the app's rule tables, never from Claude.
-- Any reason, explanation or draft text from Claude containing a date not in the confirmed facts or the timeline is rejected.
+- Gemini never supplies a signature. Signatures come only from the signature pad.
+- Gemini never passes a paper list, a draft, a rule or a signature to `build_packet`. Only a `packet_id`.
+- Gemini never adds a draft back after the user removed it. Only the user can change what is in the packet, on the review screen.
+- Gemini never answers a question about the person's life on the renewal form (like who lives with them). It only fills in facts printed on a paper, with `fill_renewal_answers`, where the person left the answer blank.
+- Deadline rules, county-mistake rules and law citations come only from the app's rule tables, never from Gemini.
+- Any reason, explanation or draft text from Gemini containing a date not in the confirmed facts or the timeline is rejected.
 - Any edit after signing clears the signature and the check result. Nothing is built from an old signature.
 - `build_packet` never runs twice for the same packet version.
 - The agent never sends anything to the county. Nothing in the helper emails, faxes, shares, prints or submits. The user does that themselves after the packet is saved.
@@ -229,7 +229,7 @@ See Section 3.
 - Max 1 hearing request and 1 restore letter per run. A new draft replaces the old one.
 - Max 10 papers per packet. The review screen enforces this; `propose_packet` soft refuses above it.
 - Internet lost mid-run: hard stop, keep the proposal, offer to continue later or go manual.
-- Watcher is plain app code, runs offline, never calls Claude, and only offers the button that starts the helper.
+- Watcher is plain app code, runs offline, never calls Gemini, and only offers the button that starts the helper.
 
 ## 6. Action log
 

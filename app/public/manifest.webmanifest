@@ -1,7 +1,7 @@
 {
   "name": "ReplyBy",
   "short_name": "ReplyBy",
-  "description": "Photograph a Medi-Cal letter. See what it means, when it is due, and send the response.",
+  "description": "Photograph a Medi-Cal letter. See what it means, when it is due, and get your reply ready to mail.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

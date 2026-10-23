@@ -1,4 +1,4 @@
-// Tests for the loop and the tools (Claude's code). Claude is replaced by a
+// Tests for the loop and the tools (written with Claude Code). Gemini is replaced by a
 // script, and the phone by a fake world, so these run with no internet.
 //
 // The tests that build_packet refuses an unsigned or unchecked packet are
@@ -49,7 +49,7 @@ function fakeWorld(changes: Partial<AgentWorld> = {}) {
   return { world, built }
 }
 
-// A pretend Claude that asks for one tool per turn, in order, then says it is done.
+// A pretend Gemini that asks for one tool per turn, in order, then says it is done.
 function scripted(calls: [string, Record<string, unknown>][]) {
   const seen: Message[][] = []
   let turn = 0
@@ -59,7 +59,7 @@ function scripted(calls: [string, Record<string, unknown>][]) {
     if (!next) return [{ type: 'text', text: 'All done.' }]
     return [{ type: 'tool_use', id: `call-${turn}`, name: next[0], input: next[1] }]
   }
-  // What the loop sent back for each tool, as Claude would read it.
+  // What the loop sent back for each tool, as Gemini would read it.
   const results = () =>
     seen.flatMap((messages) => messages.slice(-1)).flatMap((m) =>
       Array.isArray(m.content) ? m.content.flatMap((b) => (b.type === 'tool_result' ? [JSON.parse(b.content)] : [])) : []
@@ -71,11 +71,11 @@ const L = { letter_id: 'letter-1' }
 const P = { packet_id: 'packet-letter-1' }
 
 async function run(calls: [string, Record<string, unknown>][], world = fakeWorld().world) {
-  const claude = scripted(calls)
+  const ai = scripted(calls)
   const log: LogLine[] = []
   const state = newRunState()
-  const end = await runAgent(world, state, claude.ask, (line) => log.push(line))
-  return { end, log, results: claude.results(), state }
+  const end = await runAgent(world, state, ai.ask, (line) => log.push(line))
+  return { end, log, results: ai.results(), state }
 }
 
 describe('the first message to the AI', () => {
@@ -128,7 +128,7 @@ describe('the AI helper loop', () => {
     expect(log.map((l) => l.outcome)).toEqual(Array(9).fill('ok'))
   })
 
-  it('never shows Claude the name, case number, SSN or account number', async () => {
+  it('never shows Gemini the name, case number, SSN or account number', async () => {
     const { results } = await run([
       ['get_letter', L],
       ['get_paper_text', { paper_id: 'paper-a' }],
@@ -174,12 +174,12 @@ describe('the AI helper loop', () => {
     expect(end.finished).toBe(true) // date rejections do not count toward "3 in a row"
   })
 
-  it('logs IDs only, never the text Claude sent', async () => {
+  it('logs IDs only, never the text Gemini sent', async () => {
     const { log } = await run([['draft_hearing_request', { ...L, reason_text: 'My private story' }]])
     expect(log[0].inputs).toBe('letter_id="letter-1" reason_text=(text)')
   })
 
-  it('a draft the user removed cannot be added back by Claude', async () => {
+  it('a draft the user removed cannot be added back by Gemini', async () => {
     const { world } = fakeWorld({
       review: async ({ packet }) => ({ paperIds: packet.paperIds, keptDraftIds: [], reasons: {}, formFacts: packet.formFacts }),
     })

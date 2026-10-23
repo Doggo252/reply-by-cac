@@ -1,7 +1,7 @@
 // The AI helper's line to the backend. The loop (agentLoop.ts) calls askAI
 // once per step; the backend adds Neil's instructions (prompts/agent.md) and
 // asks Gemini what to do next.
-import type { AskClaude, Block, Message } from './agentLoop'
+import type { AskAI, Block, Message } from './agentLoop'
 import { TOOLS } from './agentTools'
 import { API, fetchAI } from './online'
 
@@ -10,7 +10,7 @@ import { API, fetchAI } from './online'
 export const toolList = () =>
   Object.entries(TOOLS).map(([name, tool]) => ({ name, description: tool.whatItDoes, inputs: tool.inputs }))
 
-export const askAI: AskClaude = async (messages: Message[]): Promise<Block[]> => {
+export const askAI: AskAI = async (messages: Message[]): Promise<Block[]> => {
   // fetchAI waits if the server is still waking up (online.ts).
   const response = await fetchAI(
     `${API}/agent`,

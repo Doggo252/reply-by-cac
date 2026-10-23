@@ -1,13 +1,13 @@
 // The AI helper's loop. A plain loop, no framework, readable top to bottom:
 //
-//   1. Send the conversation so far to Claude (through the backend, which
+//   1. Send the conversation so far to Gemini (through the backend, which
 //      holds the API key).
-//   2. If Claude asked for tools, run each one from agentTools.ts. Redact the
+//   2. If Gemini asked for tools, run each one from agentTools.ts. Redact the
 //      result, write a log line, and add the result to the conversation.
-//   3. Go again, until Claude stops asking for tools or a limit is hit.
+//   3. Go again, until Gemini stops asking for tools or a limit is hit.
 //
 // The rules come from Neil's agent/TOOLS.md: only tools listed there run,
-// every result is redacted before Claude sees it (Section 4), and the limits
+// every result is redacted before Gemini sees it (Section 4), and the limits
 // in Section 5 end the run with a hard stop.
 import { blankFacts, HardStop, NORMAL_REASONS, TOOLS, type AgentWorld, type RunState, type ToolResult } from './agentTools'
 import { redact } from './redact'
@@ -27,9 +27,9 @@ export type Block =
   | { type: 'tool_result'; tool_use_id: string; content: string }
 export type Message = { role: 'user' | 'assistant'; content: string | Block[] }
 
-// Sends the conversation to Claude and returns Claude's answer. Throws when
+// Sends the conversation to Gemini and returns Gemini's answer. Throws when
 // there is no internet.
-export type AskClaude = (messages: Message[]) => Promise<Block[]>
+export type AskAI = (messages: Message[]) => Promise<Block[]>
 
 // TOOLS.md, Section 6: one line per tool call, IDs only, never any text.
 export type LogLine = {
@@ -42,13 +42,13 @@ export type LogLine = {
 }
 
 export type RunEnd =
-  | { finished: true; message: string } // Claude said it was done
+  | { finished: true; message: string } // Gemini said it was done
   | { finished: false; message: string; rule: string } // a hard stop
 
 // Values under these keys are ours (IDs, dates, fixed code words), never
 // anything a person wrote, so they are left as they are. Every other piece of
 // text in a result is redacted. The refusal reason is ours too: fixed words
-// plus the IDs Claude itself sent.
+// plus the IDs Gemini itself sent.
 const KEEP = /(_id|_ids|_date|^date|_type|^saved_at|^drafts_kept|^check|^reason)$/
 
 // `names` are the person's names we already know (from About you and from the
@@ -88,7 +88,7 @@ async function runTool(name: string, input: Record<string, unknown>, world: Agen
 export async function runAgent(
   world: AgentWorld,
   state: RunState,
-  askClaude: AskClaude,
+  askAI: AskAI,
   onLog: (line: LogLine) => void
 ): Promise<RunEnd> {
   // The first message is only which letter to work on. What to do comes from
@@ -113,23 +113,23 @@ export async function runAgent(
       throw new HardStop('Section 4: redaction failed', 'Something went wrong while hiding your private details, so nothing was sent.')
     }
     for (;;) {
-      // 1. Ask Claude what to do next.
+      // 1. Ask Gemini what to do next.
       let reply: Block[]
       try {
-        reply = await askClaude(messages)
+        reply = await askAI(messages)
       } catch {
         throw new HardStop('Section 5: internet lost', 'The internet connection was lost. Your work is saved; try again later or use the manual option.')
       }
       messages.push({ role: 'assistant', content: reply })
 
-      // Claude asked for no tools: it is done.
+      // Gemini asked for no tools: it is done.
       const asks = reply.filter((b) => b.type === 'tool_use')
       if (asks.length === 0) {
         const words = reply.map((b) => (b.type === 'text' ? b.text : '')).join(' ').trim()
         return { finished: true, message: words }
       }
 
-      // 2. Run each tool Claude asked for.
+      // 2. Run each tool Gemini asked for.
       const results: Block[] = []
       for (const ask of asks) {
         toolCalls += 1
@@ -155,7 +155,7 @@ export async function runAgent(
 
         results.push({ type: 'tool_result', tool_use_id: ask.id, content: JSON.stringify(safe) })
       }
-      // 3. Hand the results back to Claude and go again.
+      // 3. Hand the results back to Gemini and go again.
       messages.push({ role: 'user', content: results })
     }
   } catch (error) {

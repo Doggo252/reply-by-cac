@@ -4,4 +4,4 @@ Seniors on Medi-Cal get letters in the mail that they must answer, sometimes wit
 
 The idea came from my grandfather, who was on Medi-Cal. Last year I watched him struggle to find a dentist, and I saw how confusing his renewal mail was.
 
-ReplyBy lets a senior photograph a Medi-Cal letter. It shows what the letter means and the exact deadlines, then prepares a filled-out response they can review and sign. Existing tools, including AI chatbots, can explain a letter. None of them respond to it, send the response, and keep proof that it was sent. ReplyBy does all three.
+ReplyBy lets a senior photograph a Medi-Cal letter. It shows what the letter means and the exact deadlines, then prepares a filled-out response they can review, sign and mail. Existing tools, including AI chatbots, can explain a letter. None of them fill out the response, check it against the letter, and keep a copy of what was signed. ReplyBy does all three.

@@ -1,5 +1,6 @@
-# The recipe Render uses to put ReplyBy online at one https address.
-# Step 1 builds the app; step 2 runs the backend, which also serves the app.
+# How ReplyBy gets built into one server. Google Cloud Run uses this, and so
+# does Render (the backup). Step 1 builds the app. Step 2 runs the backend,
+# which also serves the app.
 
 # Step 1: build the app (React) into plain files in app/dist.
 FROM node:22-slim AS app
@@ -19,6 +20,6 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 COPY backend backend
 COPY prompts prompts
 COPY --from=app /repo/app/dist app/dist
-# Render tells the server which port to use. The API key is set in Render's
-# settings, never in this file.
+# Cloud Run and Render tell the server which port to use. The API key is set
+# in their settings, never in this file.
 CMD uvicorn backend.serve:site --host 0.0.0.0 --port ${PORT:-8000}

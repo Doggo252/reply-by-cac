@@ -1,6 +1,6 @@
 // The grounding check, on the phone: AI text may only mention dates we know.
 //
-// A line-by-line copy of backend/grounding.py, so the agent can check Claude's
+// A line-by-line copy of backend/grounding.py, so the agent can check Gemini's
 // reasons and explanations on the phone (Neil's TOOLS.md, Section 4). A test
 // checks it gives the same answers as the Python (fixtures/grounding_cases.json,
 // remade with `.venv/bin/python core/eval/make_grounding_cases.py`).

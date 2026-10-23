@@ -1,12 +1,12 @@
 // The AI helper's tools: exactly the ones in Neil's agent/TOOLS.md, and no others.
 //
-// Claude never runs anything itself. It asks the loop (agentLoop.ts) to run a
+// Gemini never runs anything itself. It asks the loop (agentLoop.ts) to run a
 // tool by name; the loop looks the name up in TOOLS below and calls it. Every
 // tool checks its own preconditions here, in code, before doing anything. The
-// "What it does" text sent to Claude is copied word for word from TOOLS.md.
+// "What it does" text sent to Gemini is copied word for word from TOOLS.md.
 //
 // Two kinds of refusal (TOOLS.md, Section 2):
-//   soft refuse  the tool returns { ok: false, reason } and Claude can try again
+//   soft refuse  the tool returns { ok: false, reason } and Gemini can try again
 //   hard stop    the tool throws HardStop and the whole run ends
 import { check } from './checker'
 import { findMistakes, type Finding, type TimelineEvent } from './contradictions'
@@ -52,7 +52,7 @@ export type Packet = {
 export type ReviewView = {
   packet: Packet
   drafts: Draft[]
-  explanations: Record<string, string> // yellow_box_id -> Claude's plain words
+  explanations: Record<string, string> // yellow_box_id -> Gemini's plain words
 }
 export type ReviewAnswer = {
   paperIds: string[]
@@ -88,7 +88,7 @@ export type RunState = {
   packet: Packet | null
   earlier: Packet | null // an approved packet from an earlier run, if any
   mistakes: Map<string, Finding> // mistake_id -> what Neil's rules found, this run
-  removedDrafts: Set<string> // drafts the user unticked; Claude may not add them back
+  removedDrafts: Set<string> // drafts the user unticked; Gemini may not add them back
   dateRejections: { reasons: number; explanations: number }
 }
 
@@ -144,7 +144,7 @@ const isPacket = (state: RunState, input: Input) => state.packet !== null && inp
 type Input = Record<string, unknown>
 type Tool = {
   whatItDoes: string // from TOOLS.md, word for word
-  inputs: Record<string, 'text' | 'list'> // what Claude must send
+  inputs: Record<string, 'text' | 'list'> // what Gemini must send
   run(input: Input, world: AgentWorld, state: RunState): Promise<ToolResult>
 }
 
@@ -212,7 +212,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   get_paper_text: {
-    whatItDoes: 'returns the PII-redacted text of one paper so Claude can tell what kind of paper it is.',
+    whatItDoes: 'returns the PII-redacted text of one paper so Gemini can tell what kind of paper it is.',
     inputs: { paper_id: 'text' },
     async run(input, world) {
       if (!world.consent) return refuse('phone-only mode')
@@ -287,7 +287,7 @@ export const TOOLS: Record<string, Tool> = {
 
   draft_hearing_request: {
     whatItDoes:
-      'for MC 239 A letters only, creates a draft hearing request. Claude supplies the reason for disagreeing; the code fills in case number, dates and county from the confirmed facts. If this run already has a hearing request draft for the letter, the new draft replaces it.',
+      'for MC 239 A letters only, creates a draft hearing request. Gemini supplies the reason for disagreeing; the code fills in case number, dates and county from the confirmed facts. If this run already has a hearing request draft for the letter, the new draft replaces it.',
     inputs: { letter_id: 'text', reason_text: 'text' },
     async run(input, world, state) {
       if (!isLetter(world, input)) return refuse('no such letter')
@@ -299,7 +299,7 @@ export const TOOLS: Record<string, Tool> = {
 
   draft_restore_letter: {
     whatItDoes:
-      "creates a draft restore letter for a mistake found by check_county_mistake. Claude supplies the plain-words reason; the code fills in case number, dates, county and the law citations stored in the county-mistake rules. If this run already has a restore letter draft for the letter, the new draft replaces it.",
+      "creates a draft restore letter for a mistake found by check_county_mistake. Gemini supplies the plain-words reason; the code fills in case number, dates, county and the law citations stored in the county-mistake rules. If this run already has a restore letter draft for the letter, the new draft replaces it.",
     inputs: { letter_id: 'text', mistake_id: 'text', reason_text: 'text' },
     async run(input, world, state) {
       if (!isLetter(world, input)) return refuse('no such letter')
@@ -313,7 +313,7 @@ export const TOOLS: Record<string, Tool> = {
 
   propose_packet: {
     whatItDoes:
-      "saves Claude's suggested papers and drafts as a proposal. Nothing is approved yet. If the letter already has an approved packet from an earlier run, this starts a new proposal; Claude's new paper_ids and draft_ids replace the old ones in the proposal, approved_version is bumped, and the old check result and signature are cleared. The user still approves everything on the review screen.",
+      "saves Gemini's suggested papers and drafts as a proposal. Nothing is approved yet. If the letter already has an approved packet from an earlier run, this starts a new proposal; Gemini's new paper_ids and draft_ids replace the old ones in the proposal, approved_version is bumped, and the old check result and signature are cleared. The user still approves everything on the review screen.",
     inputs: { letter_id: 'text', paper_ids: 'list', draft_ids: 'list' },
     async run(input, world, state) {
       if (!isLetter(world, input)) return refuse('no such letter')
@@ -325,7 +325,7 @@ export const TOOLS: Record<string, Tool> = {
       if (missing.length > 0) return refuse(`no such paper: ${missing.join(', ')}`)
       const unknown = draftIds.filter((id) => !state.drafts.has(id))
       if (unknown.length > 0) return refuse(`no such draft: ${unknown.join(', ')}`)
-      // TOOLS.md, Never: Claude never adds a draft back after the user removed it.
+      // TOOLS.md, Never: Gemini never adds a draft back after the user removed it.
       const removed = draftIds.filter((id) => state.removedDrafts.has(id))
       if (removed.length > 0) return refuse(`the user removed this draft: ${removed.join(', ')}`)
 
@@ -448,7 +448,7 @@ export const TOOLS: Record<string, Tool> = {
       if (packet.signature.version !== packet.version) return stop('the signature was for an older version')
       if (packet.builtVersions.includes(packet.version)) return stop('already built for this version')
       // Papers and drafts come only from what the code stored at review and
-      // signing. Claude sent nothing but the packet_id.
+      // signing. Gemini sent nothing but the packet_id.
       const drafts = packet.draftIds.map((id) => state.drafts.get(id)!)
       const savedAt = await world.build(packet, drafts, packet.signature.png)
       packet.builtVersions.push(packet.version)

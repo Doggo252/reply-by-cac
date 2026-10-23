@@ -1,6 +1,12 @@
 # Student guides
 
-Neil writes the files listed in CLAUDE.md Rule 1. Claude does not write them, and
+These are the lessons I used before writing my own parts of the app: the classifier, the deadline rules, the county-mistake rules, the checker, the prompts, and the AI helper's rules. Claude Code wrote them for me at the start of the project. The deal was that it would teach me how each part works but not write those files for me. Each guide explains the idea, lists the decisions I had to make myself, and works an example on a different topic (library books, text messages, pizza orders), so I still had to figure out the Medi-Cal version on my own.
+
+Below is the guides' own intro, written by Claude.
+
+---
+
+Neil writes the files in the table below. Claude does not write them, and
 does not paste finished code into them. These guides exist so that "you write it"
 does not mean "you are on your own."
 
