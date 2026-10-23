@@ -3,7 +3,7 @@
 // asks Gemini what to do next.
 import type { AskClaude, Block, Message } from './agentLoop'
 import { TOOLS } from './agentTools'
-import { fetchAI } from './online'
+import { API, fetchAI } from './online'
 
 // The tool list sent with every step: the name, Neil's "What it does" text,
 // and what each tool needs.
@@ -13,7 +13,7 @@ export const toolList = () =>
 export const askAI: AskClaude = async (messages: Message[]): Promise<Block[]> => {
   // fetchAI waits if the server is still waking up (online.ts).
   const response = await fetchAI(
-    '/api/agent',
+    `${API}/agent`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages, tools: toolList() }) },
     { timeout: 90_000 },
   )

@@ -127,8 +127,9 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
     if (file) handlePhoto(file)
   }
 
-  // Only while developing: read a built-in fake letter, for computers with
-  // no camera.
+  // A made-up stop letter (the Gloria Lee one from the test letters), so
+  // anyone can try the whole app without a letter of their own, even on a
+  // computer with no camera.
   async function useSampleLetter() {
     const response = await fetch('/sample-letter.jpg')
     handlePhoto(await response.blob())
@@ -156,11 +157,9 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
           {t('Choose a photo I already took')}
           <input type="file" accept="image/*" onChange={handleFileInput} hidden />
         </label>
-        {import.meta.env.DEV && (
-          <button className="button quiet" onClick={useSampleLetter}>
-            Use a sample letter (only while building)
-          </button>
-        )}
+        <button className="button quiet" onClick={useSampleLetter}>
+          {t('No letter handy? Try a sample one')}
+        </button>
         <div className="card">
           <h2>{t('For a clear photo')}</h2>
           <p>{t("Lay the letter flat on a table, where there's good light.")}</p>

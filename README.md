@@ -5,80 +5,83 @@
 <h1 align="center">ReplyBy</h1>
 
 <p align="center">
-  Helps seniors on Medi-Cal read and understand their Medi-Cal county paperwork, so they don't lose their health coverage.
+  Helps seniors on Medi-Cal understand their county paperwork and send back the right reply, so they don't lose their health coverage.
 </p>
 
 <p align="center">
-  <a href="https://replyby.onrender.com"><b>Open the app: replyby.onrender.com</b></a>
+  <a href="https://reply-by-cac.web.app"><b>Open the app: reply-by-cac.web.app</b></a>
 </p>
 
-> Heads up! The server runs on a free platform that sleeps when not in use, so the first visit can take up to a minute to load.
-> The website works best on a phone. If using a computer, it may be hard to take pictures of a letter.
+> The website works best on a phone. On a computer, tap "No letter handy? Try a sample one" to try it with a made-up letter.
 
 Made by Neil Patil for the 2026 Congressional App Challenge, California's 16th District.
 
-## Why I made the app
+## Why I made it
 
-Roughly 69% of the people who lost Medicaid during the 2023 to 2024 renewals lost it over paperwork, not because they stopped qualifying ([KFF](https://www.kff.org/medicaid/medicaid-enrollment-and-unwinding-tracker/)). Starting in 2026, seniors on Medi-Cal have to report their savings again (DHCS ACWDL 25-14), which can make the number go even higher.
+My grandparents were on Medi-Cal. Their letters were long, full of legal words, and had deadlines. Even with a social worker, they couldn't tell what to send or when. My mom ended up walking them through it, and without her they would have lost their coverage.
 
-My grandparents were also on Medi-Cal. Their letters were long, full of legal words, and had deadlines. Even with a social worker, they couldn't tell what to send or when. Without our family helping, they would have lost their coverage.
+They're not unusual. About 69% of the people who lost Medicaid during the 2023 to 2024 renewals lost it over paperwork. They still qualified ([KFF](https://www.kff.org/medicaid/medicaid-enrollment-and-unwinding-tracker/)). And starting in 2026, seniors on Medi-Cal have to report their savings again (DHCS ACWDL 25-14), which means more forms to miss.
 
-## What the app does
+This year CA-16 asked for apps that help people get to benefits and services. Getting Medi-Cal is half of that. Keeping it is the other half, and that's what ReplyBy is for.
 
-You start by taking a picture of the letter. ReplyBy works out which letter it is, what it means, and every deadline, then helps you get your reply ready to send.
+## What it does
 
-- **Reads the letter on your phone.** Two readers check which letter it is: Google's Gemini, and a Naive Bayes classifier trained on 2,560 fake letters. If they disagree, the app asks you. You check every fact before the app uses it.
-- **Shows what to do.** What happened, what to send, and the deadline, worked out from rules based on California law, each with its source. It can read the screen out loud, and the whole app works in Spanish.
-- **Fills in the real forms.** For a renewal, it reads the pages the county already printed, so you just tap "Still right" or "It changed". It reads amounts off your papers (Social Security letter, bank statement, Medicare card) and fills in the official 17-page renewal form (MC 210 RV).
-- **Catches county mistakes.** If you sent your papers before your coverage was stopped and the county stopped it anyway, the app spots it, cites the rule (DHCS MEDIL I15-22), and drafts a letter asking the county to fix it.
-- **AI helper.** Uses Gemini function calling with 14 tools to put your reply together, and stops for your OK at each step.
-- **Checks before you sign.** You see every page first. If a date doesn't match your letter, the checker flags it, and you can't sign until it's fixed. The signed packet is saved on your phone with a code that shows it was never changed. The app never sends anything for you; you mail it yourself.
+A lot of tools can explain a letter or remind you about a deadline. ReplyBy does the reply. You take a picture of the letter, and it figures out which letter it is, what it means, and every deadline. Then it fills in the official forms, checks them against your letter, and gets everything ready for you to sign and mail.
 
-It handles three letters: the stop notice (MC 239 A), the request for information (MC 355) and the renewal (MC 210 RV), for Santa Clara and San Mateo counties. Other letters get a general explanation.
+- It reads the letter twice, with Google's Gemini and with a Naive Bayes classifier I trained on 2,560 fake letters. If the two don't agree, it asks you. You check every fact before the app uses it.
+- It shows what happened, what to send, and the deadline. The deadlines come from rules I wrote from California law, and each one shows where it comes from.
+- For a renewal, it reads the pages the county already filled in, so you just tap "Still right" or "It changed". It reads amounts off your papers (Social Security letter, bank statement, Medicare card) and fills in the real 17-page state form, the MC 210 RV.
+- If you sent your papers before your coverage was cut off and the county cut you off anyway, it catches that, cites the rule (DHCS MEDIL I15-22), and writes a letter asking the county to fix it.
+- An AI helper puts the whole reply together using Gemini function calling with 14 tools. It stops for your OK at every step.
+- Before you sign, you see every page. If a date doesn't match your letter, the checker flags it, and you can't sign until it's fixed. The app never sends anything. You mail it yourself.
+- It can read each screen out loud, and the whole app works in Spanish.
+
+It handles three letters for Santa Clara and San Mateo counties: the stop notice (MC 239 A), the request for information (MC 355), and the renewal (MC 210 RV). Any other letter gets a general explanation.
+
+## Testing it with real people
+
+I didn't want it to only work on my own test letters, so my mom, the same person who walked my grandparents through their letters, tested it twice on her phone, on the live site, with a printed test kit. A lot of things broke, which was the point.
+
+- In the first round, the renewal help only gave her a checklist. That doesn't help someone who only has the cover letter in front of them, so now the app asks the form's questions one at a time and fills in the real form. She also wanted fewer taps, saving as she goes, and a way to start over.
+- In the second round, it missed her address and date of birth, her bank statement and Medicare card photos only worked on the second try, the photos in the finished packet came out sideways, and she wanted to see the whole packet before signing. All of that is fixed now.
+- I also ran the whole stop-letter story myself on a real phone (that's the screen recording in my video). That found one more bug: the app filled in the county office's address instead of the person's. Fixed too.
+
+There are also 346 automated tests (pytest and Vitest) that run on every change.
+
+## How well it reads letters
+
+I tested both readers on 640 fake letters they had never seen, read from photos that were tilted, shadowed, folded, or cut off at the bottom.
+
+| | Letter type right |
+| --- | --- |
+| Naive Bayes classifier | 98.1% |
+| Gemini | 96.7% |
+| Both agree | 95.9% (when they disagree, the app asks the person) |
+| Both agree but wrong | 3 of 640 |
+
+Gemini sometimes misses dates. It found the notice date on 68% of letters, but it never made one up. It leaves a date blank instead of guessing, and every blank gets flagged on the screen where you check the facts. The full numbers are in [`core/eval/`](core/eval/).
 
 ## Privacy
 
-- Photos of letters never leave the phone. Text recognition (Tesseract) runs on the phone.
-- With AI on, the phone removes your name, address and case number before any text is sent.
-- Phone-only mode sends nothing and works offline.
-- The Gemini API key stays on the server, never in the app.
+Photos of your letters never leave your phone, because the text is read on the phone. If you turn AI on, the phone takes out your name, address and case number before any text is sent. If you pick phone-only mode, nothing is sent at all, and it works in airplane mode. The Gemini key stays on the server, never in the app.
 
-## Try it with a test letter
+## Try it
 
-Every letter in this repo is made up. To try the app without a real letter, print one of these and take a picture of it:
+The easiest way is the sample letter: open the app, pick a language, and tap "No letter handy? Try a sample one". Every letter here is made up.
 
-- [`data/synthetic/test-letters.pdf`](data/synthetic/test-letters.pdf): one of each letter type (3 pages)
-- [`data/synthetic/denial-kit.pdf`](data/synthetic/denial-kit.pdf): a stop letter with the renewal packet and the person's own papers
-- [`data/synthetic/test-kit.pdf`](data/synthetic/test-kit.pdf): a full renewal packet with the person's papers
+If you want to try the camera, print one of these and take a picture of it:
+
+- [`data/synthetic/test-letters.pdf`](data/synthetic/test-letters.pdf): one of each letter type
+- [`data/synthetic/denial-kit.pdf`](data/synthetic/denial-kit.pdf): a stop letter, plus the renewal packet and the person's own papers
+- [`data/synthetic/test-kit.pdf`](data/synthetic/test-kit.pdf): a full renewal packet, plus the person's papers
 
 The `-answers.txt` file next to each one lists what the app should find.
 
-## How well the readers work
-
-Tested on 640 fake letters that were held back from training, read from photos (tilted, shadowed, folded, cut off at the bottom):
-
-|                        | Letter type right                                   |
-| ---------------------- | --------------------------------------------------- |
-| Naive Bayes classifier | 98.1%                                               |
-| Gemini                 | 96.7%                                               |
-| Both agree             | 95.9% (when they disagree, the app asks the person) |
-| Both agree but wrong   | 3 of 640                                            |
-
-Gemini sometimes misses dates (it found the notice date on 68% of letters), but it leaves them blank instead of guessing: it made up 0 dates. Every blank gets flagged on the screen where the person checks the facts. Details are in [`core/eval/`](core/eval/).
-
 ## How it's built
 
-| Part             | What it uses                                                                         |
-| ---------------- | ------------------------------------------------------------------------------------ |
-| App              | React and TypeScript (Vite), installable on a phone, works offline                   |
-| Text recognition | Tesseract.js, on the phone                                                           |
-| Forms            | pdf-lib fills the official PDFs; pdf.js shows them before signing                    |
-| Storage          | The phone's own storage (IndexedDB); receipts are hashed with SHA-256                |
-| Server           | Python (FastAPI); passes text to Gemini and keeps the key private                    |
-| AI               | Google Gemini                                                                        |
-| Classifier       | Naive Bayes in Python, trained offline, run in the browser from its exported weights |
-| Hosting          | Docker on Render                                                                     |
-| Tests            | pytest and Vitest, 346 automated tests                                               |
+The app is React and TypeScript, built with Vite, and you can install it on a phone like a normal app. Text recognition runs on the phone with Tesseract.js. pdf-lib fills in the official PDFs, and pdf.js shows them before you sign. Everything you save stays in the phone's own storage, and each signed packet gets a SHA-256 code that shows it was never changed.
+
+The server is Python (FastAPI). Its job is to pass text to Gemini and keep the API key private. The app's pages are on Firebase Hosting, and Firebase passes the AI calls to the server, which runs in Docker on Google Cloud Run. The same Docker setup also runs the whole app on Render (replyby.onrender.com) as a backup.
 
 ## What's where
 
@@ -100,12 +103,13 @@ data/
   templates/         official DHCS forms and letters
   synthetic/         labels, letter texts, and the printable test letters
 docs/                the problem statement and images
-Dockerfile           how the app is built and put online (with render.yaml)
+Dockerfile           how the app and server are built (for Cloud Run, and for Render with render.yaml)
+firebase.json        how the app is put online on Firebase, with the AI calls sent to Cloud Run
 ```
 
 ## Run it yourself
 
-You need Node 22 and Python 3.13. A Gemini API key is optional; without one, phone-only mode still works.
+You need Node 22 and Python 3.13. A Gemini API key is optional. Without one, phone-only mode still works.
 
 ```bash
 make setup                               # installs everything

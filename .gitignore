@@ -31,5 +31,6 @@ __pycache__/
 # Local-only files. Kept on this laptop, not pushed to GitHub.
 .claude/
 .firebaserc
+.firebase/
 replyby-plan-v3-ai-first.md
 uncommitted/

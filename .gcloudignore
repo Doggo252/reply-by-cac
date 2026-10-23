@@ -1,0 +1,14 @@
+# What NOT to upload when gcloud builds the server on Google Cloud Run.
+# The Dockerfile only needs app/, core/rules/, backend/ and prompts/, so the
+# rest (letters, test kits, planning files, secrets) stays on this laptop.
+#!include:.gitignore
+.git/
+.gcloudignore
+.firebase/
+.claude/
+node_modules/
+data/
+docs/
+uncommitted/
+core/eval/
+backend/.env

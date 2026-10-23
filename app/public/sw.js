@@ -4,13 +4,15 @@
 // deadlines and letters must always come from fresh data, not a stale copy.
 //
 // Bump CACHE_NAME whenever the app's files change, so old copies get thrown out.
-const CACHE_NAME = 'replyby-v7'
+const CACHE_NAME = 'replyby-v8'
 
-// Cache the shell on install: the page itself, the logo and icons, and the
-// official forms, so the reply packet can be made with no internet.
+// Cache the shell on install: the page itself, the logo and icons, the
+// official forms, so the reply packet can be made with no internet, and the
+// sample letter, so it can be tried offline too.
 const SHELL = [
   '/', '/index.html', '/manifest.webmanifest', '/logo.svg', '/icon-192.png', '/icon-512.png',
   '/forms/hearing-request.pdf', '/forms/mc210rv-signature-page.pdf', '/forms/mc210rv.pdf',
+  '/sample-letter.jpg',
 ]
 
 self.addEventListener('install', (event) => {

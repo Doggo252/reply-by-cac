@@ -5,7 +5,7 @@
 // scrubs it again. If the phone is offline or the server is down, this
 // returns null and the app carries on with Reader B alone.
 import { redact } from './redact'
-import { fetchAI } from './online'
+import { API, fetchAI } from './online'
 
 export type Facts = Record<string, unknown> & { letter_type?: string | null }
 
@@ -23,7 +23,7 @@ export async function askReaderA(ocrText: string, onWaking?: () => void): Promis
   const { text, counts } = redact(ocrText)
   try {
     const response = await fetchAI(
-      '/api/extract',
+      `${API}/extract`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) },
       { timeout: TIMEOUT_MS, onWaking },
     )
@@ -48,7 +48,7 @@ export async function askForExplanation(
 ): Promise<Explanation | null> {
   try {
     const response = await fetchAI(
-      '/api/explain',
+      `${API}/explain`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ facts, language }) },
       { timeout: TIMEOUT_MS },
     )
@@ -73,7 +73,7 @@ export async function askForDrafts(
 ): Promise<Drafts | null> {
   try {
     const response = await fetchAI(
-      '/api/draft',
+      `${API}/draft`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

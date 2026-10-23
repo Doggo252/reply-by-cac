@@ -1,6 +1,12 @@
 // Whether the phone can reach the AI: is it online, and is the AI server awake.
 import { useEffect, useState } from 'react'
 
+// Where the AI server is: always "/api" on the app's own address. On Render the
+// app and the server are one service. On Firebase (reply-by-cac.web.app),
+// Firebase passes /api on to the same server running on Google Cloud Run
+// (see firebase.json). A build can still point somewhere else with VITE_API_URL.
+export const API = import.meta.env.VITE_API_URL ?? '/api'
+
 // True while the phone is online. Changes when the connection does.
 export function useOnline(): boolean {
   const [online, setOnline] = useState(navigator.onLine)
@@ -60,7 +66,7 @@ let knocked = false
 export function wakeUpAI() {
   if (knocked || !navigator.onLine) return
   knocked = true
-  fetchAI('/api/health', {}, { timeout: 30_000 }).catch(() => {
+  fetchAI(`${API}/health`, {}, { timeout: 30_000 }).catch(() => {
     knocked = false // try again next time
   })
 }

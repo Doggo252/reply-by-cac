@@ -40,6 +40,7 @@ export const SPANISH: Record<string, string> = {
     'Empiece con la primera página de su carta de Medi-Cal. La leemos y le decimos qué hacer.',
   'Take a photo': 'Tomar una foto',
   'Choose a photo I already took': 'Elegir una foto que ya tomé',
+  'No letter handy? Try a sample one': '¿No tiene una carta a la mano? Pruebe con una de ejemplo',
   'For a clear photo': 'Para una foto clara',
   "Lay the letter flat on a table, where there's good light.": 'Ponga la carta plana sobre una mesa, donde haya buena luz.',
   'Get the whole page in the picture.': 'Que salga la página completa en la foto.',
