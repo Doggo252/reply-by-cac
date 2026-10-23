@@ -59,7 +59,7 @@ test('the all-digit CalHEERS number is skipped for the SAWS one', () => {
 })
 
 // The next tests use lines from the printed test letters
-// (data/synthetic/test-letters.pdf), read by the text reader.
+// (data/synthetic/printable/test-letters.pdf), read by the text reader.
 test('a notice date whose slashes were read as digits', () => {
   const text = 'NOTICE DATE: 1000712026\nCASE NAME: Gloria Lee'
   expect(findFacts(text, 'MC_239A', '2026-10-15').facts.notice_date).toBe('2026-10-07')

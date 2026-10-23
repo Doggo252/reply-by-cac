@@ -3,7 +3,7 @@ each type the app handles, dated a few days ago so the countdowns are live.
 
     .venv/bin/python data/make_test_letters.py
 
-Writes data/synthetic/test-letters.pdf (print it) and test-letters-answers.txt
+Writes data/synthetic/printable/test-letters.pdf (print it) and test-letters-answers.txt
 (what the app should find on each one). Everything in them is made up.
 """
 
@@ -55,11 +55,11 @@ def main():
             f"  case number:    {facts['case_number']}",
             f"  worker:         {facts['worker_name']}, {facts['worker_phone']}",
         ]))
-    g.OUT_DIR.mkdir(exist_ok=True)
-    out.save(g.OUT_DIR / "test-letters.pdf")
-    (g.OUT_DIR / "test-letters-answers.txt").write_text("\n\n".join(answers) + "\n")
+    g.PRINT_DIR.mkdir(parents=True, exist_ok=True)
+    out.save(g.PRINT_DIR / "test-letters.pdf")
+    (g.PRINT_DIR / "test-letters-answers.txt").write_text("\n\n".join(answers) + "\n")
     print("\n\n".join(answers))
-    print(f"\nPrint {g.OUT_DIR / 'test-letters.pdf'}")
+    print(f"\nPrint {g.PRINT_DIR / 'test-letters.pdf'}")
 
 
 if __name__ == "__main__":

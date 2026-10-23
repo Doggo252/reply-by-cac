@@ -3,7 +3,7 @@
     .venv/bin/python data/make_test_kit.py                 (Windows: .venv\\Scripts\\python)
     .venv/bin/python data/make_test_kit.py --second-round  (adds an MC 355 at the end)
 
-Writes data/synthetic/test-kit.pdf, in two clearly marked parts:
+Writes data/synthetic/printable/test-kit.pdf, in two clearly marked parts:
   page 1       the role card for the tester ("You are Rosa Delgado...")
   page 2       divider: PART 1, the letter the county mailed you
   pages 3-23   Rosa's whole renewal packet, all 21 pages of the MC 210 RV,
@@ -309,8 +309,8 @@ def main():
     if second_round:
         divider(doc, "SECOND ROUND", "Another letter from the county", ["A Request for Information (3 pages)."])
         request = mc355(doc)
-    g.OUT_DIR.mkdir(exist_ok=True)
-    out = g.OUT_DIR / "test-kit.pdf"
+    g.PRINT_DIR.mkdir(parents=True, exist_ok=True)
+    out = g.PRINT_DIR / "test-kit.pdf"
     doc.save(out, garbage=3, deflate=True)
     answers = [
         "What the app should find:",
@@ -323,7 +323,7 @@ def main():
         answers.append(
             f"  MC 355: notice {request['notice_date']}, due {request['due_date']}; checked boxes: Social Security proof, bank statement"
         )
-    (g.OUT_DIR / "test-kit-answers.txt").write_text("\n".join(answers) + "\n", encoding="utf-8")
+    (g.PRINT_DIR / "test-kit-answers.txt").write_text("\n".join(answers) + "\n", encoding="utf-8")
     print("\n".join(answers))
     print(f"\n{len(doc)} pages. Print {out}")
 

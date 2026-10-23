@@ -1,10 +1,10 @@
 """Makes a printable kit for filming the stop-letter (MC 239 A) flow: Gloria Lee's
-whole story, built around the same letter as data/synthetic/test-letters.pdf
+whole story, built around the same letter as data/synthetic/printable/test-letters.pdf
 page 1 (the one in the video's opening), so the letter on screen matches.
 
     .venv/bin/python data/make_denial_kit.py        (Windows: .venv\\Scripts\\python)
 
-Writes data/synthetic/denial-kit.pdf:
+Writes data/synthetic/printable/denial-kit.pdf:
   page 1       the role card: who Gloria is, her money, what happened
   page 2       divider: PART 1, the letter the county mailed you
   pages 3-4    the Notice of Action (MC 239 A) and the hearing rights page (NA Back 9)
@@ -127,8 +127,8 @@ def main():
     kit.bank_statement(doc)
     kit.medicare_card(doc)
 
-    g.OUT_DIR.mkdir(exist_ok=True)
-    out = g.OUT_DIR / "denial-kit.pdf"
+    g.PRINT_DIR.mkdir(parents=True, exist_ok=True)
+    out = g.PRINT_DIR / "denial-kit.pdf"
     doc.save(out, garbage=3, deflate=True)
     page = lambda form_page: first_renewal_page + form_page   # kit page number of a form page
     answers = [
@@ -142,7 +142,7 @@ def main():
         f"  Medicare card: {kit.MEDICARE_NUMBER}",
         f"  Story: renewal mailed {SENT}, before the stop date, so the county made a mistake.",
     ]
-    (g.OUT_DIR / "denial-kit-answers.txt").write_text("\n".join(answers) + "\n", encoding="utf-8")
+    (g.PRINT_DIR / "denial-kit-answers.txt").write_text("\n".join(answers) + "\n", encoding="utf-8")
     print("\n".join(answers))
     print(f"\n{len(doc)} pages. Print {out}")
 

@@ -74,9 +74,9 @@ There are also 346 automated tests (pytest and Vitest). Full results are in `cor
 
 Open the live site and tap "No letter handy? Try a sample one". To try the camera, print one of these and take a picture:
 
-- `data/synthetic/test-letters.pdf`: one of each letter
-- `data/synthetic/denial-kit.pdf`: a discontinuance letter with the renewal packet and papers
-- `data/synthetic/test-kit.pdf`: a renewal packet with papers
+- `data/synthetic/printable/test-letters.pdf`: one of each letter
+- `data/synthetic/printable/denial-kit.pdf`: a discontinuance letter with the renewal packet and papers
+- `data/synthetic/printable/test-kit.pdf`: a renewal packet with papers
 
 Everything in these are made up. The `-answers.txt` files say what the app should find.
 

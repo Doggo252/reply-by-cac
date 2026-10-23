@@ -30,6 +30,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageFo
 HERE = Path(__file__).parent
 TEMPLATES = HERE / "templates"
 OUT_DIR = HERE / "synthetic"
+PRINT_DIR = OUT_DIR / "printable"   # the test kits, to print and take pictures of
 
 # The fake letters are dated around this day. Fixed, so that running the
 # generator twice with the same seed makes exactly the same letters.
