@@ -17,6 +17,35 @@ test('a discontinuance: skips the county office address at the top', () => {
   })
 })
 
+// Oct 22 run: the photo reader read "CASE NAME:" and the name on separate
+// lines, so no name was found, and the app filled in the county office's
+// address from the top of the letter instead of Gloria's.
+test('a discontinuance with the name missed: still not the county office address', () => {
+  const text = [
+    'Santa Clara County Social Services',
+    '2351 Monroe St',
+    'Gilroy CA 95020-7124',
+    'COUNTY OF SANTA CLARA',
+    'NOTICE DATE:',
+    'CASE NAME:',
+    'CALHEERS CASE NUMBER:',
+    '10/07/2026',
+    'Gloria Lee',
+    '70026706',
+    'Gloria Lee',
+    '5212 Alameda Ave',
+    'Palo Alto, CA 94301-7513',
+  ].join('\n')
+  expect(aboutFromLetter(text)).toEqual({
+    name: 'Gloria Lee', street: '5212 Alameda Ave', city: 'Palo Alto', zip: '94301', county: 'Santa Clara',
+  })
+})
+
+test('only the county office address on the photo: no address guessed', () => {
+  const text = 'Santa Clara County Social Services\n2351 Monroe St\nGilroy CA 95020-7124'
+  expect(aboutFromLetter(text)).toEqual({ county: 'Santa Clara' })
+})
+
 test('a city with no comma, and no county named (the city tells the county)', () => {
   const text = 'Notice For: Esperanza Hernandez\nEsperanza Hernandez .\n7227 Oak St Notice Date: 10/07/2026\nEast Palo Alto CA 94303-4315'
   expect(aboutFromLetter(text)).toEqual({

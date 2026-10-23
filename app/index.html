@@ -9,15 +9,17 @@
 
     <!-- Makes the app installable to the phone home screen. -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#0f766e" />
+    <meta name="theme-color" content="#1f4e8c" />
 
     <!-- iOS ignores most of the manifest, so it needs its own tags. -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="ReplyBy" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <link rel="icon" href="/icon-192.png" />
+    <!-- The logo (public/logo.svg), with a picture for browsers that can't draw it. -->
+    <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" type="image/png" />
   </head>
   <body>
     <div id="root"></div>

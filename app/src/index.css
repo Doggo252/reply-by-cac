@@ -94,7 +94,7 @@ body {
   height: 1.2rem;
 }
 
-/* The app's name, with a small logo: a blue tile with a reply arrow. */
+/* The app's name, with the logo (public/logo.svg): a letter and a reply badge. */
 .app-name {
   display: flex;
   gap: 0.45rem;
@@ -106,14 +106,11 @@ body {
   color: var(--brand-dark);
 }
 .app-name::before {
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.8rem;
+  height: 1.8rem;
   content: '';
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 7 4 12l5 5'/%3E%3Cpath d='M4 12h10a6 6 0 0 1 6 6'/%3E%3C/svg%3E")
-      center / 1rem no-repeat,
-    linear-gradient(135deg, #2b63ad, var(--brand-dark));
-  border-radius: 0.5rem;
+  background: url('/logo.svg') center / contain no-repeat;
+  border-radius: 0.45rem;
   box-shadow: var(--shadow-sm);
 }
 

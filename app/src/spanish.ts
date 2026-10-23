@@ -51,6 +51,9 @@ export const SPANISH: Record<string, string> = {
   "We'll read it on your phone only.": 'La leeremos solo en su teléfono.',
   "You're offline, so the AI can't help read it right now. We'll read it on your phone, and you can check every fact.":
     'No tiene internet, así que la IA no puede ayudar a leerla ahora. La leeremos en su teléfono, y usted puede revisar cada dato.',
+  'Waking up the AI…': 'Despertando a la IA…',
+  'The first time in a while, this can take up to a minute. Keep this screen open.':
+    'La primera vez en un rato, esto puede tardar hasta un minuto. Mantenga esta pantalla abierta.',
   "We couldn't reach the AI just now, so your phone read the letter by itself. Please check each fact.":
     'No pudimos conectar con la IA, así que su teléfono leyó la carta solo. Por favor, revise cada dato.',
   "You're offline, so your phone read the letter by itself. Please check each fact.":

@@ -43,7 +43,13 @@ const PLAIN_STREET = /^[ \t]*(\d{2,6}[ \t]+[A-Z][A-Za-z]+(?:[ \t]+[A-Z][A-Za-z]+
 // the city is still kept, and the person types the ZIP.
 const CITY = /\b([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+){0,2}),?[ \t]+(?:CA|Ca|ca)\b[ \t]*([^\n]*)/
 
-type Address = { line: number; street: string; city: string; zip: string | null }
+// The line above an address says whose it is: the county's own office
+// ("Santa Clara County Social Services", "Santa Clara County Medi-Cal Office"),
+// or a person's name ("Gloria Lee"), the way a mailing address starts.
+const COUNTY_WORDS = /\bcounty\b|social\s+services|\bagency\b|\boffice\b|\bdepartment\b/i
+const NAME_AT_END = /([A-Z][a-z'-]+(?:[ \t]+[A-Z][a-z'-]+){1,3})[ \t.]*$/
+
+type Address = { line: number; street: string; city: string; zip: string | null; county: boolean; nameAbove: string | null }
 
 // Every street line with a city line right under it.
 function addresses(lines: string[]): Address[] {
@@ -54,14 +60,19 @@ function addresses(lines: string[]): Address[] {
     const city = i + 1 < lines.length ? CITY.exec(clean(lines[i + 1])) : null
     if (!street || !city) return
     const zip = /(9\d{4})/.exec(city[2].replace(/\s/g, ''))
-    found.push({ line: i, street: street.trim(), city: city[1], zip: zip ? zip[1] : null })
+    const above = i > 0 ? clean(lines[i - 1]) : ''
+    const county = COUNTY_WORDS.test(above)
+    const nameAbove = county ? null : NAME_AT_END.exec(above)?.[1] ?? null
+    found.push({ line: i, street: street.trim(), city: city[1], zip: zip ? zip[1] : null, county, nameAbove })
   })
   return found
 }
 
-// The county's own office address is on the letter too, so the person's
-// address is the one closest to their name ("Case name: ..."), and on a tie
-// the one after it.
+// The county's own office address is on the letter too, and is never taken
+// for the person's. Of the rest, the person's address is the one closest to
+// their name ("Case name: ..."), and on a tie the one after it. When the photo
+// reader missed that label, it is the one under a person's name. Oct 22 run:
+// with the name missed, the app filled in the county office's address.
 export function aboutFromLetter(text: string): Partial<AboutYou> {
   const about: Partial<AboutYou> = {}
   const name = nameAfterLabel(text)
@@ -70,15 +81,17 @@ export function aboutFromLetter(text: string): Partial<AboutYou> {
   // street and the city, so they no longer looked like an address.
   const lines = text.split('\n').filter((line) => line.trim() !== '')
   const nameLine = name ? lines.findIndex((l) => /case\s*name|notice\s*for/i.test(l) && l.includes(name)) : -1
-  const found = addresses(lines)
+  const found = addresses(lines).filter((address) => !address.county)
+  const underName = found.filter((address) => address.nameAbove)
   const best =
     nameLine < 0
-      ? found[0]
+      ? underName[0] ?? found[0]
       : [...found].sort((a, b) => Math.abs(a.line - nameLine) - Math.abs(b.line - nameLine) || b.line - a.line)[0]
   if (best) {
     about.street = best.street
     about.city = best.city
     if (best.zip) about.zip = best.zip
+    if (!about.name && best.nameAbove) about.name = best.nameAbove
   }
   if (/san\s+mateo/i.test(text)) about.county = 'San Mateo'
   else if (/santa\s+clara/i.test(text)) about.county = 'Santa Clara'

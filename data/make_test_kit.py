@@ -45,6 +45,7 @@ BALANCE = "2,312.45"
 MEDICARE_NUMBER = "1EG4-TE5-MK73"  # the made-up number Medicare uses in its own examples
 # ... and last year's, which the county printed in the renewal packet for her to check.
 LAST_YEAR = {"social_security": "1,190.00", "part_b": "174.70", "bank": "1,850.00", "car": "4,500.00"}
+VEHICLE = "2012 Toyota Corolla"
 
 PAGE = (612, 792)
 MADE_UP = "Everything in this kit is made up for a test of the ReplyBy app."
@@ -169,7 +170,7 @@ def renewal_packet(doc):
         "resources_amount_1": LAST_YEAR["bank"],
         "resources_name_2": ROSA["name"],
         "resources_type_2": "Vehicle",
-        "resources_details_2": "2012 Toyota Corolla",
+        "resources_details_2": VEHICLE,
         "resources_amount_2": f"{LAST_YEAR['car']} / 0.00",
         "medicare_name_1": ROSA["name"],
         "medicare_parta_1": "0.00",

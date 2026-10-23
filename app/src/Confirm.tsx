@@ -116,9 +116,13 @@ export default function Confirm({ fields, facts, flags, text = '', photoUrl, let
         </p>
       )}
       {fields.map((field) => {
+        // The yellow goes away once the person changes the fact...
         const flag = !checked.has(field) ? flags[field] : undefined
+        // ...but the help stays: where to look, the letter up close, and the
+        // choices. (Oct 22: it used to vanish at the first letter typed.)
+        const helped = !!flags[field]
         // Choices only where the scanner was not sure, and only other values.
-        const choices = flag ? choicesFor(field, text).filter((c) => c.value !== values[field]) : []
+        const choices = helped ? choicesFor(field, text).filter((c) => c.value !== values[field]) : []
         return (
           <div key={field} className={`fact ${flag ? 'flagged' : ''}`}>
             <label>
@@ -131,13 +135,13 @@ export default function Confirm({ fields, facts, flags, text = '', photoUrl, let
               />
             </label>
             {flag && <span className="fact-flag">{t(flag)}</span>}
-            {flag && whereToLook(field, letterType) && (
+            {helped && whereToLook(field, letterType) && (
               <p className="small">
                 <strong>{t('Where to look:')} </strong>
                 {t(whereToLook(field, letterType))}
               </p>
             )}
-            {flag && photoUrl && (
+            {helped && photoUrl && (
               <>
                 <button type="button" className="link" onClick={() => setZoomed(zoomed === field ? null : field)}>
                   {zoomed === field ? t('Hide my letter') : t('See my letter up close')}

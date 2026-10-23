@@ -34,11 +34,25 @@ const HANDLED = ['MC_239A', 'MC355', 'MC210_RV']
 
 // The model is loaded once and kept, since it never changes while the app runs.
 let model: Model | null = null
-// The second reading for the address, if one is running (handlePhoto below).
-let addressReading: Promise<string> = Promise.resolve('')
+
+// "What the app read" shows while building, and on the real site when the
+// address ends in ?debug, so a problem on a phone can be seen on that phone.
+const SHOW_READING = import.meta.env.DEV || new URLSearchParams(window.location.search).has('debug')
+
+// Does the photo need a second, cleaner look? Yes if the phone missed one of
+// the facts it can usually find, or the person's address.
+function needsSecondLook(text: string, letterType: string): boolean {
+  if (!HANDLED.includes(letterType)) return false
+  const found = findFacts(text, letterType, todayOnThisPhone()).facts as Record<string, string | null>
+  return fieldsFor(letterType).some((field) => field !== 'ask' && !found[field]) || !aboutFromLetter(text).street
+}
+
+// Both looks at the photo together, for the phone's own fact finding.
+const allText = (read: Read) => [read.ocr.text, read.secondText].filter(Boolean).join('\n')
 
 type Read = {
   ocr: OcrResult
+  secondText: string // the second, cleaner look, if one was needed ('' if not)
   readerB: string
   readerA: string | null
   aiFacts: AiFacts | null
@@ -48,7 +62,7 @@ type Read = {
 
 type Stage =
   | { name: 'idle' }
-  | { name: 'reading'; progress: number; almostDone: boolean }
+  | { name: 'reading'; progress: number; almostDone: boolean; waking?: boolean }
   | { name: 'done'; read: Read }
   | { name: 'error'; message: string }
 
@@ -79,25 +93,27 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
       const image = await prepareImage(file)
       setPhotoUrl(URL.createObjectURL(image))
       const ocr = await readText(file, (progress) => setStage({ name: 'reading', progress, almostDone: false }))
-      // The address is often printed in a thin typewriter font the first
-      // reading misses (Mom's Oct 21 test). A cleaner second reading finds it,
-      // and runs while the person checks the facts.
-      addressReading = aboutFromLetter(ocr.text).street
-        ? Promise.resolve('')
-        : readText(file, () => {}, 'clean').then((second) => second.text, () => '')
       // Reader B: Neil's classifier, running on the phone.
       model ??= await loadModel()
       const readerB = predict(model, ocr.text).letterType
+      // A second, cleaner look at the photo when the first one missed a fact
+      // or the address (a thin typewriter font, or a shadow: Oct 21 and 22
+      // tests). It runs while the AI reads the letter.
+      const second = needsSecondLook(ocr.text, readerB)
+        ? readText(file, () => {}, 'clean').then((reading) => reading.text, () => '')
+        : Promise.resolve('')
+      setStage({ name: 'reading', progress: 1, almostDone: true })
       // Reader A: the AI, through the backend, only if the user allowed it.
       let aiFacts: AiFacts | null = null
       if (mode === 'ai') {
-        setStage({ name: 'reading', progress: 1, almostDone: true })
-        aiFacts = (await askReaderA(ocr.text))?.facts ?? null
+        const waking = () => setStage({ name: 'reading', progress: 1, almostDone: true, waking: true })
+        aiFacts = (await askReaderA(ocr.text, waking))?.facts ?? null
       }
+      const secondText = await second
       const readerA = (aiFacts?.letter_type as string | null | undefined) ?? null
       // Neil's must-agree rule decides what happens next.
       const aiMissed = mode === 'ai' && aiFacts === null
-      setStage({ name: 'done', read: { ocr, readerB, readerA, aiFacts, decision: decide(readerA, readerB), aiMissed } })
+      setStage({ name: 'done', read: { ocr, secondText, readerB, readerA, aiFacts, decision: decide(readerA, readerB), aiMissed } })
     } catch (error) {
       console.error(error)
       setStage({ name: 'error', message: t('We could not read that photo. Please try again.') })
@@ -173,9 +189,13 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
 
       {stage.name === 'reading' && (
         <div className="card" role="status">
-          <h2>{stage.almostDone ? t('Almost done…') : t('Reading your letter…')}</h2>
+          <h2>{stage.waking ? t('Waking up the AI…') : stage.almostDone ? t('Almost done…') : t('Reading your letter…')}</h2>
           <progress value={stage.progress} max={1} />
-          <p>{t('This takes a few seconds. Keep this screen open.')}</p>
+          <p>
+            {stage.waking
+              ? t('The first time in a while, this can take up to a minute. Keep this screen open.')
+              : t('This takes a few seconds. Keep this screen open.')}
+          </p>
         </div>
       )}
 
@@ -190,13 +210,19 @@ export default function Capture({ onDone }: { onDone: (letter: SavedLetter) => v
         <AfterReading read={stage.read} mode={mode} photoUrl={photoUrl} onDone={onDone} onRetake={startOver} />
       )}
 
-      {stage.name === 'done' && import.meta.env.DEV && (
+      {stage.name === 'done' && SHOW_READING && (
         <details className="dev">
           <summary>What the app read (only while building)</summary>
-          <p>Reader A (AI): {stage.read.readerA ?? 'not used'}</p>
+          <p>Reader A (AI): {stage.read.readerA ?? (stage.read.aiMissed ? 'could not reach the AI' : 'not used')}</p>
           <p>Reader B (classifier): {stage.read.readerB}</p>
           <p>Photo reading confidence: {Math.round(stage.read.ocr.confidence)}%</p>
           <pre className="ocr-text">{stage.read.ocr.text.trim() || 'No words found in this photo.'}</pre>
+          {stage.read.secondText && (
+            <>
+              <p>Second, cleaner look:</p>
+              <pre className="ocr-text">{stage.read.secondText.trim()}</pre>
+            </>
+          )}
         </details>
       )}
     </>
@@ -275,10 +301,9 @@ function AfterReading({ read, mode, photoUrl, onDone, onRetake }: {
         mode={mode}
         photoUrl={photoUrl}
         letterType={picked}
-        onConfirm={async (facts) => {
-          const addressText = await addressReading
-          onDone({ letterType: picked, facts, mode, text: read.ocr.text, addressText: addressText || undefined, savedAt: new Date().toISOString() })
-        }}
+        onConfirm={(facts) =>
+          onDone({ letterType: picked, facts, mode, text: read.ocr.text, addressText: read.secondText || undefined, savedAt: new Date().toISOString() })
+        }
       />
       {retake}
     </>
@@ -339,7 +364,7 @@ function CheckFacts({ read, mode, photoUrl, letterType, onConfirm }: {
 }) {
   const today = todayOnThisPhone()
   const fields = fieldsFor(letterType)
-  const local = findFacts(read.ocr.text, letterType, today)
+  const local = findFacts(allText(read), letterType, today)
   const repaired = [...local.repaired]
   const facts: Record<string, string | null> = {}
   for (const field of fields) {
@@ -377,7 +402,7 @@ function CheckFacts({ read, mode, photoUrl, letterType, onConfirm }: {
       fields={fields}
       facts={facts}
       flags={flags}
-      text={read.ocr.text}
+      text={allText(read)}
       photoUrl={photoUrl}
       letterType={letterType}
       onConfirm={onConfirm}

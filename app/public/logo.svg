@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- ReplyBy: an envelope with a reply arrow coming out of it, in the app's blue and warm orange. -->
+  <rect width="512" height="512" rx="112" fill="#1f4e8c"/>
+  <!-- Drawing -->
+  <circle cx="256" cy="268" r="196" fill="#2a5da0"/>
+  <!-- The arrow first, so the envelope covers its end: it comes out of the envelope. -->
+  <path d="M336 290 V178 a54 54 0 0 0 -54 -54 H186 M232 78 L186 124 L232 170" fill="none" stroke="#ee7d1b" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="104" y="238" width="304" height="204" rx="30" fill="#0f2a4f" opacity="0.28"/>
+  <rect x="104" y="226" width="304" height="204" rx="30" fill="#ffffff"/>
+  <path d="M126 248 L256 340 L386 248" fill="none" stroke="#bfd0ea" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

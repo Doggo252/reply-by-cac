@@ -1,0 +1,8 @@
+What the app should find:
+  Stop letter: notice 2026-10-07, Medi-Cal stops 2026-10-31, case 7X4M714, worker Lorraine Nguyen (669) 260-4088
+  Renewal packet: notice 2026-07-24, due 2026-09-22
+  County pages: form page 5 = kit page 10, page 9 = kit page 14, page 11 = kit page 16
+  Social Security letter: $1,312.00 a month, Part B $202.90
+  Bank statement: Golden State Credit Union, ending balance $2,684.17
+  Medicare card: 1EG4-TE5-MK73
+  Story: renewal mailed 2026-10-15, before the stop date, so the county made a mistake.

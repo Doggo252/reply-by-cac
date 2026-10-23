@@ -5,6 +5,7 @@
 // scrubs it again. If the phone is offline or the server is down, this
 // returns null and the app carries on with Reader B alone.
 import { redact } from './redact'
+import { fetchAI } from './online'
 
 export type Facts = Record<string, unknown> & { letter_type?: string | null }
 
@@ -17,15 +18,15 @@ export type ReaderAResult = {
 // Give up after this long, so a slow connection does not freeze the screen.
 const TIMEOUT_MS = 45_000
 
-export async function askReaderA(ocrText: string): Promise<ReaderAResult | null> {
+// onWaking: the AI server is still waking up (online.ts), so it will take longer.
+export async function askReaderA(ocrText: string, onWaking?: () => void): Promise<ReaderAResult | null> {
   const { text, counts } = redact(ocrText)
   try {
-    const response = await fetch('/api/extract', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    })
+    const response = await fetchAI(
+      '/api/extract',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) },
+      { timeout: TIMEOUT_MS, onWaking },
+    )
     if (!response.ok) return null
     const body = await response.json()
     return { facts: body.facts, redacted: counts }
@@ -46,12 +47,11 @@ export async function askForExplanation(
   language: 'english' | 'spanish'
 ): Promise<Explanation | null> {
   try {
-    const response = await fetch('/api/explain', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ facts, language }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    })
+    const response = await fetchAI(
+      '/api/explain',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ facts, language }) },
+      { timeout: TIMEOUT_MS },
+    )
     if (!response.ok) return null
     return await response.json()
   } catch (error) {
@@ -72,18 +72,21 @@ export async function askForDrafts(
   timeline: { date: string; type: string; description: string }[]
 ): Promise<Drafts | null> {
   try {
-    const response = await fetch('/api/draft', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // Only the date, kind and note of each event. Who did it and the proof
-      // file names stay on the phone.
-      body: JSON.stringify({
-        facts: { ...facts, case_number: null },
-        findings,
-        timeline: timeline.map(({ date, type, description }) => ({ date, type, description: redact(description).text })),
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    })
+    const response = await fetchAI(
+      '/api/draft',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Only the date, kind and note of each event. Who did it and the proof
+        // file names stay on the phone.
+        body: JSON.stringify({
+          facts: { ...facts, case_number: null },
+          findings,
+          timeline: timeline.map(({ date, type, description }) => ({ date, type, description: redact(description).text })),
+        }),
+      },
+      { timeout: TIMEOUT_MS },
+    )
     if (!response.ok) return null
     return await response.json()
   } catch (error) {

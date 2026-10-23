@@ -81,6 +81,10 @@ export function CountyPage({ index, renewal, onNext, onBack }: {
     onNext({ ...answers, ...given, [ON_FILE]: JSON.stringify(all) })
   }
 
+  // One line's answer. Built on the newest list, so two quick taps both count.
+  const answer = (index: number, correct: boolean) =>
+    setRows((old) => old && old.map((row, i) => (i === index ? { ...row, correct } : row)))
+
   const allAnswered = !!rows && rows.every((row) => row.correct !== undefined)
 
   return (
@@ -127,16 +131,10 @@ export function CountyPage({ index, renewal, onNext, onBack }: {
             <div key={i} className="card on-file">
               <p className="on-file-line">{rowWords(row)}</p>
               <div className="button-row">
-                <button
-                  className={`button ${row.correct === true ? 'primary' : ''}`}
-                  onClick={() => setRows(rows.map((r, j) => (j === i ? { ...r, correct: true } : r)))}
-                >
+                <button className={`button ${row.correct === true ? 'primary' : ''}`} onClick={() => answer(i, true)}>
                   {t('Still right')}
                 </button>
-                <button
-                  className={`button ${row.correct === false ? 'primary' : ''}`}
-                  onClick={() => setRows(rows.map((r, j) => (j === i ? { ...r, correct: false } : r)))}
-                >
+                <button className={`button ${row.correct === false ? 'primary' : ''}`} onClick={() => answer(i, false)}>
                   {t('It changed')}
                 </button>
               </div>
