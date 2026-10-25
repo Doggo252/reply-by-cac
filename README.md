@@ -41,6 +41,8 @@ It supports three letters for Santa Clara and San Mateo counties: the renewal fo
 
 I tested the app with real users. Through the tests, I changed the app to ask the questions one by one and fill in the real form, and to catch address and date of birth. Some photos only worked on the second try, and the photos in the packet came out sideways, which are fixed as well.
 
+A senior on Medi-Cal also tried the app and said: "It was pretty easy to use. I liked the way it guides one to complete the process. Once you are ready with it I would like to use it for my next renewal."
+
 I tested both readers on 640 fake letters they had never seen, from photos that were tilted, shadowed, folded or cut off:
 
 - Naive Bayes classifier: 98.1% right
